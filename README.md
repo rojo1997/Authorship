@@ -54,3 +54,8 @@ Fichero principal que realiza la lectura de los datos, la división train test y
 Fichero que contiene el modelo. Ajuste de hiperparámetros, cross-validation, lematización, analizador de frases, TF-IDF y Linear Support Vector Machine. Todo se encuentra recogido en un **pipeline** único.
 
 [Authorship.py](../src/Authorship.py)
+
+Fichero para imprimir información deseada dentro de un pipeline.
+
+[NVarPrint.py](../src/Authorship.py)
+
