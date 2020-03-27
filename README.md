@@ -23,18 +23,34 @@ python -m pip install sklearn
 ```
 
 Instalación de nltk
-~~~
+```
 python -m pip install nltk
-~~~
+```
 Instalación de pandas
-~~~
+```
 python -m pip install pandas
-~~~
+```
 
 ## Conjunto de datos
 
 Se ha testeado el modelo sobre el conjunto de datos de iniciatiavas del congreso 2008.
 
+[Dataset](http://www.senado.es/web/actividadparlamentaria/iniciativas/detalleiniciativa/documentos/index.html;jsessionid=fKQKp9vDxNknrvpmnMTcFSb8QhDqRvZ156xPByyQ80qGcyGpRJGX!981478430?legis=8&id1=621&id2=000136)
+
+El conjunto de datos se encuentra nativamente en formato XML. Tras eliminar los datos superfluos del mismo, la etiqueta y los documentos se han pasado a formato CSV. Siguiendo esta estructura:
+
+| Etiqueta  | Texto                   |
+| --------- |:-----------------------:|
+| Persona 1 | Parrafos concatenados 1 |
+| Persona 2 | Parrafos concatenados 2 |
+| Persona 1 | Parrafos concatenados 3 |
+
 ## Ficheros
 
+Fichero principal que realiza la lectura de los datos, la división train test y las llamadas fit y predict necesarias.
 
+[main.py](../src/main.py)
+
+Fichero que contiene el modelo. Ajuste de hiperparámetros, cross-validation, lematización, analizador de frases, TF-IDF y Linear Support Vector Machine. Todo se encuentra recogido en un **pipeline** único.
+
+[Authorship.py](../src/Authorship.py)
