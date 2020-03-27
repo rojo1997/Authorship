@@ -18,8 +18,9 @@ Estracción e identificación de características sobre la escritura de un sujet
 ## Instalación
 
 Instalación de sklearn
-.. code:: shell
-  python -m pip install sklearn
+```
+python -m pip install sklearn
+```
 
 Instalación de nltk
 ~~~
