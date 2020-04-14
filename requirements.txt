@@ -3,3 +3,7 @@ sklearn
 nltk
 tqdm
 dill
+pdoc3
+pylint
+setuptools
+wheel

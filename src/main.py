@@ -49,7 +49,7 @@ def main():
         "data/data.csv", 
         sep='\t', 
         encoding='utf-8',
-        #nrows = 10000
+        #nrows = 800
     )
     print(time.strftime("%X"))
     print("Leido CSV: ", df.shape)
@@ -88,16 +88,26 @@ def main():
     clf.fit(X = X_train, y = y_train)
     print(time.strftime("%X"))
 
-    print("Accuracy train: ", clf.score(X = X_train.text, y = y_train))
-    print("Accuracy test: ", clf.score(X = X_test.text, y = y_test))
+    print("Accuracy train: ", clf.score(X = X_train, y = y_train))
+    print("Accuracy test: ", clf.score(X = X_test, y = y_test))
     
     print(time.strftime("%X"))
 
-    predicted = clf.predict(X = X_test.text)
-    print(classification_report(y_test, predicted))
-    print(confusion_matrix(y_test, predicted))
+    y_test_pred = clf.predict(X = X_test)
+    print(classification_report(y_test, y_test_pred))
+    report = classification_report(y_test, y_test_pred, output_dict=True)
+    pd.DataFrame(report).transpose().to_csv('data/report.txt')
+    print(confusion_matrix(y_test, y_test_pred, normalize = 'all'))
+    np.savetxt('data/confusion_matrix_normalize.txt', confusion_matrix(y_test, y_test_pred, normalize = 'all'), delimiter=',')
+    print(confusion_matrix(y_test, y_test_pred))
+    np.savetxt('data/confusion_matrix.txt', confusion_matrix(y_test, y_test_pred), delimiter=',')
 
-    with open('model/classifier.pkl', 'wb') as file:
+    print("best_score_", clf.clf.best_score_)
+    print("best_params_", clf.clf.best_params_)
+    print("cv_results_", clf.clf.cv_results_)
+    print("cv", clf.clf.cv)
+
+    with open('model/classifier.pkl', 'wb+') as file:
         pickle.dump(clf, file)
 
 if __name__ == "__main__":

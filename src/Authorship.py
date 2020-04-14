@@ -87,9 +87,9 @@ class Authorship(BaseEstimator, ClassifierMixin):
             # Tomar palabras en duos, trios...
             'CountVectorizer__ngram_range': [(1,1), (1,2), (1,3), (2,3)],
             # Numero de caracteristicas extraidas del texto
-            'CountVectorizer__max_features': [1000, 5000, None],
+            'CountVectorizer__max_features': [5000, 7000],
             # Frecuencia maxima en el texto
-            'CountVectorizer__max_df': [1.0, 0.9, 0.8, 0.7],
+            'CountVectorizer__max_df': [1.0, 0.9, 0.8],
             # Frecuencia minima en el texto
             #'min_df': [1e-1, 1e-2],
             # Toleracia a parada
@@ -97,6 +97,7 @@ class Authorship(BaseEstimator, ClassifierMixin):
             # Penalizacion por termino mal clasificado
             'LinearSVC__C': [2.0, 1.0, 0.5]
         }
+        
 
         self.scoring = make_scorer(
             # Funcion de score
@@ -113,18 +114,18 @@ class Authorship(BaseEstimator, ClassifierMixin):
             # Medicion de error
             scoring = self.scoring,
             # Numero de hebras
-            n_jobs = 4,
+            n_jobs = 12,
             # Numero de validaciones
             cv = 5,
             # Imprimir progreso
-            verbose = 7 if verbose == 1 else False
+            verbose = verbose
         )
     
     def fit(self, X, y):
         self.clf.fit(X = X, y = self.le.transform(y))
 
     def predict(self, X):
-        return(self.clf.predict(X))
+        return(self.le.inverse_transform(self.clf.predict(X),))
 
     def score(self, X, y):
         return(self.clf.score(X,self.le.transform(y)))
