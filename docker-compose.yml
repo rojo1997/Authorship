@@ -1,0 +1,12 @@
+version: "3.7"
+services:
+  authorship:
+    build:
+      context: .
+      target: "authorship_python"
+    volumes:
+      - authorship_data:/authorship/data
+    network_mode: "bridge"
+
+volumes:
+  authorship_data:

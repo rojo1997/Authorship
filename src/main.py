@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from nltk.corpus import stopwords
 import string
+import dill as pickle
 
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import SGDClassifier
@@ -95,6 +96,9 @@ def main():
     predicted = clf.predict(X = X_test.text)
     print(classification_report(y_test, predicted))
     print(confusion_matrix(y_test, predicted))
+
+    with open('model/classifier.pkl', 'wb') as file:
+        pickle.dump(clf, file)
 
 if __name__ == "__main__":
     main()

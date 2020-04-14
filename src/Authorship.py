@@ -7,8 +7,6 @@ import numpy as np
 import pandas as pd
 from joblib import Memory
 
-from shutil import rmtree
-
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.svm import LinearSVC
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
