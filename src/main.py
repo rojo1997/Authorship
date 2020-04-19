@@ -6,16 +6,11 @@
 import time
 import pandas as pd
 import numpy as np
-from nltk.corpus import stopwords
 import string
 import dill as pickle
 
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.linear_model import SGDClassifier
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.svm import LinearSVC, SVC
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import LabelEncoder
 
 from Authorship import Authorship
@@ -97,8 +92,8 @@ def main():
     print(classification_report(y_test, y_test_pred))
     report = classification_report(y_test, y_test_pred, output_dict=True)
     pd.DataFrame(report).transpose().to_csv('data/report.txt')
-    print(confusion_matrix(y_test, y_test_pred, normalize = 'all'))
-    np.savetxt('data/confusion_matrix_normalize.txt', confusion_matrix(y_test, y_test_pred, normalize = 'all'), delimiter=',')
+    print(confusion_matrix(y_test, y_test_pred))
+    np.savetxt('data/confusion_matrix_normalize.txt', confusion_matrix(y_test, y_test_pred), delimiter=',')
     print(confusion_matrix(y_test, y_test_pred))
     np.savetxt('data/confusion_matrix.txt', confusion_matrix(y_test, y_test_pred), delimiter=',')
 
