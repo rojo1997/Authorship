@@ -7,3 +7,4 @@ pdoc3
 pylint
 setuptools
 wheel
+tensorflow
