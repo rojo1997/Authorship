@@ -24,10 +24,10 @@ class Authorship(BaseEstimator, ClassifierMixin):
     def __init__(self, le = None, random_state = 1, verbose = False):
         # Codificacion para los nombres en Y
         self.le = le
-        self.epochs = 120
+        self.epochs = 1000
         self.num_words = 5000
-        self.maxlen = 350
-        self.embedding_dim = 120
+        self.maxlen = 200
+        self.embedding_dim = 150
         self.tokenizer = Tokenizer(
             num_words = self.num_words,
             lower = True,
@@ -40,13 +40,23 @@ class Authorship(BaseEstimator, ClassifierMixin):
                 output_dim = self.embedding_dim,
             ),
             tf.keras.layers.SpatialDropout1D(
-                rate = 0.3
+                rate = 0.2
             ),
             tf.keras.layers.Bidirectional(
-                tf.keras.layers.LSTM(self.embedding_dim, dropout=0.3, recurrent_dropout=0.2)
+                tf.keras.layers.LSTM(
+                    self.embedding_dim, 
+                    dropout = 0.2, 
+                    recurrent_dropout = 0.2
+                )
             ),
-            tf.keras.layers.Dense(self.embedding_dim, activation = 'relu'),
-            tf.keras.layers.Dense(85, activation = 'softmax'),
+            tf.keras.layers.Dense(
+                self.embedding_dim, 
+                activation = 'relu'
+            ),
+            tf.keras.layers.Dense(
+                97, 
+                activation = 'softmax'
+            ),
         ])
         print(self.clf.summary())
         self.clf.compile(
@@ -70,7 +80,8 @@ class Authorship(BaseEstimator, ClassifierMixin):
         self.clf.fit(
             X_padded_sep, 
             y, 
-            epochs = self.epochs
+            epochs = self.epochs,
+            validation_split = 0.1
         )
         #self.clf.fit(X = X, y = self.le.transform(y))
 
@@ -86,9 +97,9 @@ class Authorship(BaseEstimator, ClassifierMixin):
 def main():
     random_state = 1
     nwords = 20
-    frecuency = 50
+    frecuency = 100
 
-    df = real_xml('./iniciativas08/').sample(20000, random_state = random_state)
+    df = real_xml('./iniciativas08/')#.sample(20000, random_state = random_state)
     print("Leido XML: ", df.shape)
     print(time.strftime("%X"))
     
