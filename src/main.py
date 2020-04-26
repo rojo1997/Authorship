@@ -14,32 +14,18 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
 
 from Authorship import Authorship
-from functions import readData
-
-def filter(df, nphrases = 5, frecuency = 10, inplace = False):
-    if inplace:
-        df.drop(df[df.nphrases >= nphrases].index, inplace = True)
-        groups = df.groupby(['name']).count()
-        df["gr"] = df.name.map(lambda n: float(groups.loc[n,"text"]))
-        df = df.drop(df[df.gr >= frecuency].index, inplace = True)
-    else:
-        df_copy = df.copy()
-        df_copy = df_copy[df_copy.nphrases >= nphrases]
-        groups = df_copy.groupby(['name']).count()
-        df_copy["gr"] = df_copy.name.map(lambda n: float(groups.loc[n,"text"]))
-        df_copy = df_copy[df_copy.gr >= frecuency]
-        return(df_copy)
+from functions import real_xml, filter_df
 
 def main():
     random_state = 1
-    nphrases = 5
-    frecuency = 10
+    nwords = 20
+    frecuency = 50
 
-    """data = readData('./iniciativas08/')
-    print("Leido XML: ", data.shape)
-    print(time.strftime("%X"))"""
-    
+    df = real_xml('./iniciativas08/').sample(10000, random_state = random_state)
+    print("Leido XML: ", df.shape)
     print(time.strftime("%X"))
+    
+    """print(time.strftime("%X"))
     df = pd.read_csv(
         "data/data.csv", 
         sep='\t', 
@@ -47,14 +33,14 @@ def main():
         #nrows = 800
     )
     print(time.strftime("%X"))
-    print("Leido CSV: ", df.shape)
+    print("Leido CSV: ", df.shape)"""
     #print("Columns: ", df.columns)
 
     """data.to_csv("data.csv", sep='\t', encoding='utf-8', index = None)
     print("Guardado CSV")
     print(time.strftime("%X"))"""
 
-    df = filter(df, nphrases = nphrases,frecuency = frecuency, inplace = False)
+    df = filter_df(df, nwords = nwords, frecuency = frecuency)
     print("Filtro sobre Dataset: ", df.shape)
 
     le = LabelEncoder()
@@ -76,7 +62,8 @@ def main():
     clf = Authorship(
         verbose = 1,
         random_state = random_state,
-        le = le
+        le = le,
+        n_jobs = 3
     )
 
     print(time.strftime("%X"))

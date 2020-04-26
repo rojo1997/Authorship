@@ -24,16 +24,15 @@ from string import punctuation
 from NVarPrint import NVarPrint
 
 class Authorship(BaseEstimator, ClassifierMixin):
-    def __init__(self, le, random_state = 1, verbose = False):
+    def __init__(self, le, random_state = 1, verbose = False, n_jobs = 4):
         # Extrator de raices en castellano
         self.stemmer = SpanishStemmer()
         # Analizador externo
         self.analyzer = CountVectorizer().build_analyzer()
         # Codificacion para los nombres en Y
         self.le = le
-        # Memoria de cache adicional para el pipeline
-        self.location = 'cachedir'
-        self.memory = Memory(location = self.location, verbose = 10)
+        # Hebras en paralelo
+        self.n_jobs = n_jobs
 
         self.text_clf = Pipeline([
             ('CountVectorizer', CountVectorizer(
@@ -83,7 +82,7 @@ class Authorship(BaseEstimator, ClassifierMixin):
             ))
         ], verbose = True if verbose == 2 else False)
 
-        self.param_grid = {
+        """self.param_grid = {
             # Tomar palabras en duos, trios...
             'CountVectorizer__ngram_range': [(1,1), (1,2), (1,3), (2,3)],
             # Numero de caracteristicas extraidas del texto
@@ -94,6 +93,21 @@ class Authorship(BaseEstimator, ClassifierMixin):
             #'min_df': [1e-1, 1e-2],
             # Toleracia a parada
             'LinearSVC__tol': [1e-3, 1e-4, 1e-5],
+            # Penalizacion por termino mal clasificado
+            'LinearSVC__C': [2.0, 1.0, 0.5]
+        }"""
+
+        self.param_grid = {
+            # Tomar palabras en duos, trios...
+            'CountVectorizer__ngram_range': [(1,3)],
+            # Numero de caracteristicas extraidas del texto
+            'CountVectorizer__max_features': [5000],
+            # Frecuencia maxima en el texto
+            'CountVectorizer__max_df': [0.8],
+            # Frecuencia minima en el texto
+            #'min_df': [1e-1, 1e-2],
+            # Toleracia a parada
+            'LinearSVC__tol': [1e-4],
             # Penalizacion por termino mal clasificado
             'LinearSVC__C': [2.0, 1.0, 0.5]
         }
@@ -114,11 +128,11 @@ class Authorship(BaseEstimator, ClassifierMixin):
             # Medicion de error
             scoring = self.scoring,
             # Numero de hebras
-            n_jobs = 12,
+            n_jobs = self.n_jobs,
             # Numero de validaciones
             cv = 5,
             # Imprimir progreso
-            verbose = verbose
+            verbose = 10
         )
     
     def fit(self, X, y):

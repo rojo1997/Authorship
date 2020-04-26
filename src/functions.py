@@ -13,62 +13,13 @@ import numpy as np
 from nltk.tokenize import word_tokenize, sent_tokenize, RegexpTokenizer
 from nltk.tag import pos_tag
 from nltk.stem import SnowballStemmer
+import xml.etree.ElementTree as ET
 
 stemmer = SnowballStemmer('spanish')
 
-def readDocument(docname):
-    # We open de document
-    mydoc = minidom.parse(docname)
-    # We request the list of interventions
-    intervencion = mydoc.getElementsByTagName('intervencion')
-    # Data structure
-    data = pd.DataFrame({'name':[],'text':[]})
-    # Detect lowercase
-    lower = re.compile(r'.*[a-z]+')
-
-    for elem in intervencion:
-        nodes = elem.childNodes
-        name = (nodes[1].childNodes[0].nodeValue).replace("El señor ","")
-        name = name.replace("La señora ","")
-        name = name.replace("El señora ","")
-        name = name.replace("-","")
-        name = name.replace("_","")
-        pos = name.find(',')
-        if pos != -1:
-            name = name[0:(pos)]
-
-        if "la palabra" in name: continue
-        if '.' in name: continue
-        if "VICEPRESIDENT" in name: continue
-        if "PRESIDENT" in name: continue
-        if "REPRESENTANTE" in name: continue
-        if "LETRADO" in name: continue
-        if "CONSEJER" in name: continue
-        if lower.match(name): continue
-
-        parrafos = nodes[3].childNodes
-
-        text = ""
-        for parrafo in parrafos:
-            if parrafo.nodeType == 1:
-                if len(parrafo.childNodes):
-                    text = text + " " + parrafo.childNodes[0].nodeValue
-        text = text.replace("-","")
-        text = text.replace("_","")
-        text = text.replace("[...]","")
-        if text: data = data.append({'name':name,'text':text},ignore_index=True)
-    return (data)
-
-def readData(path):
-    files = []
-    data = pd.DataFrame({'name':[],'text':[]})
-    for _,_,f in os.walk(path):
-        for file in f:
-            if '.xml' in file:
-                files.append(path + file)
-    files.sort()
-    data = pd.concat([readDocument(docname) for docname in files])
-    return(data)
+def clean(text):
+    text = re.sub("[^a-zA-Z]", " ", str(text))
+    return (re.sub("^\d+\s|\s\d+\s|\s\d+$", " ", text))
 
 def nphrases(str):
     p = str.count('.')
@@ -126,3 +77,72 @@ def feature_extraction (data):
     for i in range(2, levels + 1):
         data['levels_token'] += data['token'].map(lambda ws: tupleN(ws,i)) + ' '
         print(i)
+
+def filter_df(df, nwords = 3, frecuency = 10):
+    df['nwords'] = df['text'].apply(lambda s: len(s.split(' ')))
+    print("antes: ", df.shape)
+    df.drop(df[df['nwords'] <= nwords].index, inplace = True)
+    print("despues: ", df.shape)
+    groups = df['name'].value_counts()
+    df["gr"] = df.name.map(lambda n: float(groups.get(key = n)))
+    df.drop(df[df.gr <= frecuency].index, inplace = True)
+    print('despues: ', df.shape)
+    return(df)
+
+def real_xml(path = 'iniciativas08/'):
+    files = []
+    df = []
+    for _,_,f in os.walk(path):
+        for file in f:
+            if '.xml' in file:
+                files.append(path + file)
+    files = pd.DataFrame(files, columns = ['file'])#.head(5)
+    #print(files)
+
+    files['intervenciones'] = files['file'].apply(
+        lambda f: ET.parse(f).findall('iniciativa/intervencion')
+    )
+    
+    for _,intervenciones in files['intervenciones'].iteritems():
+        for intervencion in intervenciones:
+            df.append({
+                'name': intervencion.findtext('interviniente'),
+                'text': '. '.join([str(parrafo.text) for parrafo in intervencion.findall('discurso/parrafo')])
+            })
+    df = pd.DataFrame(df, columns = ['name','text'])
+
+    filters = [line.replace('\n', '').strip() for line in open('replace.txt', 'r', encoding = 'utf8').readlines()]
+
+    my_filter = re.compile('|'.join(map(re.escape, filters)))
+
+    df['name'] = df['name'].apply(lambda name: 
+        name.replace(
+            "PÉREZ GARCÍA DE PRADO", "PÉREZ GARCÍA DEL PRADO"
+        ).replace(
+            ',', ''
+        ).replace(
+            '.', ''
+        ).replace(
+            '/', ''
+        ).strip()
+    )
+
+    
+
+    df['name'] = df['name'].apply(lambda name:
+        my_filter.sub("", name).strip()
+    )
+
+    df.drop(df[df['name'] == ''].index,inplace = True)
+
+    df['text'] = df['text'].apply(lambda text: clean(text.replace('-','')))
+
+    print(df['name'].unique())
+    df['name'] = df['name'].apply(lambda name: name.upper())
+    df['name'] = df['name'].apply(lambda name: ' '.join(name.split(' ')[:4]))
+
+    print(df['name'].unique().shape)
+    print(df['name'].value_counts())
+    print(df.shape)
+
+    return(df)
