@@ -89,15 +89,17 @@ def filter_df(df, nwords = 3, frecuency = 10):
     print('despues: ', df.shape)
     return(df)
 
-def real_xml(path = 'iniciativas08/'):
+def real_xml(path = 'iniciativas08/', nfiles = None):
     files = []
     df = []
     for _,_,f in os.walk(path):
         for file in f:
             if '.xml' in file:
                 files.append(path + file)
-    files = pd.DataFrame(files, columns = ['file'])#.head(5)
-    #print(files)
+
+
+    if nfiles == None: files = pd.DataFrame(files, columns = ['file'])
+    else: files = pd.DataFrame(files, columns = ['file']).head(nfiles)
 
     files['intervenciones'] = files['file'].apply(
         lambda f: ET.parse(f).findall('iniciativa/intervencion')

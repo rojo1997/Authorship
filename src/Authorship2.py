@@ -13,6 +13,15 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.decomposition import TruncatedSVD
+
+from nltk.stem.snowball import SpanishStemmer
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+
+from string import punctuation
 
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
@@ -21,40 +30,77 @@ from NVarPrint import NVarPrint
 from functions import real_xml, filter_df
 
 class Authorship(BaseEstimator, ClassifierMixin):
-    def __init__(self, le = None, random_state = 1, verbose = False):
+    def __init__(self, le = None, random_state = 1, verbose = False, ntarget = 0):
+        # Extrator de raices en castellano
+        self.stemmer = SpanishStemmer()
+        # Analizador externo
+        self.analyzer = CountVectorizer().build_analyzer()
         # Codificacion para los nombres en Y
         self.le = le
-        self.epochs = 1000
-        self.num_words = 5000
-        self.maxlen = 200
-        self.embedding_dim = 150
-        self.tokenizer = Tokenizer(
-            num_words = self.num_words,
-            lower = True,
-            split = " "
-        )
+        self.random_state = random_state
+        self.epochs = 150
+        self.embedding_dim = 400
+        self.max_features = 5000
+        self.n_components = 500
+        self.preprocessing = Pipeline([
+            ('CountVectorizer', CountVectorizer(
+                # Pasar minuculas
+                lowercase = True,
+                # Palabras que no se valoran para el modelos
+                stop_words = stopwords.words("spanish") + list(punctuation),
+                # Extraer la raiz de cada palabra
+                analyzer = lambda doc: map(self.stemmer.stem,self.analyzer(doc)),
+                # Dividir un parrafo en palabras
+                tokenizer = word_tokenize,
+                # Marca a 1 todos los 0
+                binary = False,
+                # Typo de dato para las columnas
+                dtype = np.int64,
+                max_features = self.max_features,
+                ngram_range = (1,3)
+            )),
+            ('TfidfTransformer', TfidfTransformer(
+                # Normalizacion l2 suma de los cuadrados del vector
+                norm = "l2",
+                # Frecuencia de documentos inversa
+                use_idf = True,
+                # Alisado de documentos
+                smooth_idf = True,
+                # Escala sublinear no usada
+                sublinear_tf = False
+            )),
+            ('TruncatedSVD', TruncatedSVD(
+                n_components = self.n_components,
+                n_iter = 20,
+                random_state = self.random_state
+            ))
+        ], verbose = True)
+
         self.clf = tf.keras.Sequential([
-            tf.keras.layers.Embedding(
-                input_length = self.maxlen, 
-                input_dim = self.num_words, 
-                output_dim = self.embedding_dim,
+            tf.keras.layers.Dense(
+                self.embedding_dim,
+                input_shape = (self.n_components,),
+                activation = 'relu'
             ),
-            tf.keras.layers.SpatialDropout1D(
-                rate = 0.2
-            ),
-            tf.keras.layers.Bidirectional(
-                tf.keras.layers.LSTM(
-                    self.embedding_dim, 
-                    dropout = 0.2, 
-                    recurrent_dropout = 0.2
-                )
+            tf.keras.layers.Dropout(
+                rate = 0.4
             ),
             tf.keras.layers.Dense(
                 self.embedding_dim, 
                 activation = 'relu'
             ),
+            tf.keras.layers.Dropout(
+                rate = 0.4
+            ),
             tf.keras.layers.Dense(
-                97, 
+                self.embedding_dim, 
+                activation = 'relu'
+            ),
+            tf.keras.layers.Dropout(
+                rate = 0.4
+            ),
+            tf.keras.layers.Dense(
+                ntarget, 
                 activation = 'softmax'
             ),
         ])
@@ -62,28 +108,19 @@ class Authorship(BaseEstimator, ClassifierMixin):
         self.clf.compile(
             loss = 'categorical_crossentropy',
             opimizer = 'adam',
-            metrics = ['accuracy', 'categorical_accuracy'],
+            metrics = ['accuracy'],
         )
     
     def fit(self, X, y):
-        self.tokenizer.fit_on_texts(X)
-        X_dict = self.tokenizer.word_index
-        print(len(X_dict))
-        X_seq = self.tokenizer.texts_to_sequences(X)
-        print(X_seq[:2])
-        X_padded_sep = pad_sequences(
-            X_seq, 
-            padding = 'post', 
-            maxlen = self.maxlen
-        )
-        print(X_padded_sep.shape)
+        print('Preprocessing')
+        self.preprocessing.fit(X,y)
+        print('Preprocessing end')
         self.clf.fit(
-            X_padded_sep, 
+            self.preprocessing.transform(X), 
             y, 
             epochs = self.epochs,
             validation_split = 0.1
         )
-        #self.clf.fit(X = X, y = self.le.transform(y))
 
     def predict(self, X):
         #return(self.le.inverse_transform(self.clf.predict(X),))
@@ -99,7 +136,7 @@ def main():
     nwords = 20
     frecuency = 100
 
-    df = real_xml('./iniciativas08/')#.sample(20000, random_state = random_state)
+    df = real_xml('./iniciativas08/', nfiles = None)
     print("Leido XML: ", df.shape)
     print(time.strftime("%X"))
     
@@ -141,6 +178,7 @@ def main():
         verbose = 1,
         random_state = random_state,
         le = le,
+        ntarget = y_train.shape[1]
     )
 
     print(time.strftime("%X"))
