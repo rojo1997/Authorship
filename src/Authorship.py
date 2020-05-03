@@ -18,7 +18,6 @@ from sklearn.metrics import accuracy_score, balanced_accuracy_score, make_scorer
 from nltk.stem.snowball import SpanishStemmer
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-
 from string import punctuation
 
 from NVarPrint import NVarPrint

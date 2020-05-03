@@ -139,12 +139,7 @@ def real_xml(path = 'iniciativas08/', nfiles = None):
 
     df['text'] = df['text'].apply(lambda text: clean(text.replace('-','')))
 
-    print(df['name'].unique())
     df['name'] = df['name'].apply(lambda name: name.upper())
     df['name'] = df['name'].apply(lambda name: ' '.join(name.split(' ')[:4]))
-
-    print(df['name'].unique().shape)
-    print(df['name'].value_counts())
-    print(df.shape)
 
     return(df)
