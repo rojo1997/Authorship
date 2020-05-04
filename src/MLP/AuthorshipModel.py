@@ -36,9 +36,9 @@ class AuthorshipModel(BaseEstimator, ClassifierMixin):
         X_pre = self.preprocessing.fit_transform(X,y)
 
         self.param_grid = {
-            'layers': [2,3,4,5],
-            'units': [16,32,64,128],
-            'dropout_rate': [0.2,0.3,0.4,0.5]
+            'layers': [2],
+            'units': [64],
+            'dropout_rate': [0.3]
         }
 
         self.clf = Pipeline([
@@ -49,7 +49,7 @@ class AuthorshipModel(BaseEstimator, ClassifierMixin):
                     input_shape = (X_pre.shape[1],),
                     num_classes = self.num_classes,
                     epochs = self.epochs,
-                    verbose = False
+                    verbose = True
                 ),
                 cv = 5,
                 n_jobs = 1,

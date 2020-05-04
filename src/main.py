@@ -56,7 +56,7 @@ def main():
         units = 64,
         layers = 3,
         dropout_rate = 0.4,
-        epochs = 400,
+        epochs = 50,
         verbose = True
     )
 
