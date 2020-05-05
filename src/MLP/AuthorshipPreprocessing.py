@@ -11,7 +11,7 @@ from string import punctuation
 import numpy as np
 
 class AuthorshipPreprocessing(BaseEstimator, TransformerMixin):
-    def __init__(self, verbose = False, k = 10, ngram_range = (1,2), 
+    def __init__(self, verbose = False, k = 10, ngram_range = (1,3), 
         max_features = 50):
         # Imprimir pasos
         self.verbose = verbose
@@ -29,7 +29,7 @@ class AuthorshipPreprocessing(BaseEstimator, TransformerMixin):
                 analyzer = 'word',
                 encoding = 'utf8',
                 dtype = np.float32,
-                ngram_range = self.ngram_range,
+                ngram_range = self.ngram_range, # (1,3): 0.792
                 max_features = self.max_features,
                 min_df = 1.0 / 1000.0,
                 max_df = 999.0 / 1000.0,

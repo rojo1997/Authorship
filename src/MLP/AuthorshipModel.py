@@ -38,7 +38,7 @@ class AuthorshipModel(BaseEstimator, ClassifierMixin):
         self.param_grid = {
             'layers': [2],
             'units': [64],
-            'dropout_rate': [0.3]
+            'dropout_rate': [0.3,0.4]
         }
 
         self.clf = Pipeline([

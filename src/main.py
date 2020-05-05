@@ -55,7 +55,7 @@ def main():
         max_features = 100000,
         units = 64,
         layers = 3,
-        dropout_rate = 0.4,
+        dropout_rate = 0.3,
         epochs = 50,
         verbose = True
     )
