@@ -10,7 +10,7 @@ from string import punctuation
 
 import numpy as np
 
-class AuthorshipPreprocessing(BaseEstimator, TransformerMixin):
+class TFIDFVectorizerANOVA(BaseEstimator, TransformerMixin):
     def __init__(self, verbose = False, k = 10, ngram_range = (1,3), 
         max_features = 50):
         # Imprimir pasos
@@ -77,6 +77,6 @@ if __name__ == "__main__":
         'Alberto',
         'Pablo',
     ]
-    preprocessing = AuthorshipPreprocessing(verbose = True)
+    preprocessing = TFIDFVectorizerANOVA(verbose = True)
     X_preprocessing = preprocessing.fit_transform(X, y)
     print(X_preprocessing)

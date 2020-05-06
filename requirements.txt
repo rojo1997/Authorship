@@ -8,3 +8,5 @@ pylint
 setuptools
 wheel
 tensorflow
+tensorflow_hub
+WordCloud

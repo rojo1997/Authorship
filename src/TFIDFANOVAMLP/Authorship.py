@@ -7,12 +7,12 @@ from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
 import numpy as np
 
-from MLP.AuthorshipPreprocessing import AuthorshipPreprocessing
-from MLP.mlp_model import mlp_model
+from Preprocessing.TFIDFVectorizerANOVA import TFIDFVectorizerANOVA
+from TFIDFANOVAMLP.mlp_model import mlp_model
 
-class AuthorshipModel(BaseEstimator, ClassifierMixin):
-    def __init__(self, labels ,k = 20, ngram_range = (1,2), max_features = 50, layers = 2, 
-        units = 16, dropout_rate = 0.2, epochs = 300, verbose = False):
+class Authorship(BaseEstimator, ClassifierMixin):
+    def __init__(self, labels ,k = 20000, ngram_range = (1,2), max_features = 100000, layers = 2, 
+        units = 96, dropout_rate = 0.3, epochs = 50, verbose = False):
         self.verbose = verbose
         self.k = k
         self.ngram_range = ngram_range
@@ -21,35 +21,28 @@ class AuthorshipModel(BaseEstimator, ClassifierMixin):
         self.units = units
         self.dropout_rate = dropout_rate
         self.epochs = epochs
-        self.preprocessing = AuthorshipPreprocessing(
+        self.num_classes = len(labels)
+        self.preprocessing = TFIDFVectorizerANOVA(
             verbose = self.verbose,
             k = self.k,
             ngram_range = self.ngram_range,
             max_features = self.max_features
         )
-        self.num_classes = len(labels)
-        self.le = LabelEncoder()
-        self.le.fit(labels)
-
-    def fit(self, X, y):
-        y = self.le.transform(y)
-        X_pre = self.preprocessing.fit_transform(X,y)
-
         self.param_grid = {
-            'layers': [2],
-            'units': [64],
-            'dropout_rate': [0.3,0.4]
+            'units': [self.units]
         }
-
         self.clf = Pipeline([
             ('preprocessing', self.preprocessing),
             ('GridSearchCV', GridSearchCV(
                 estimator = KerasClassifier(
                     mlp_model,
-                    input_shape = (X_pre.shape[1],),
+                    input_shape = self.k,
                     num_classes = self.num_classes,
+                    layers = self.layers,
+                    units = self.units,
+                    dropout_rate = self.dropout_rate,
                     epochs = self.epochs,
-                    verbose = True
+                    verbose = False
                 ),
                 cv = 5,
                 n_jobs = 1,
@@ -57,20 +50,22 @@ class AuthorshipModel(BaseEstimator, ClassifierMixin):
                 verbose = self.verbose
             ))
         ], verbose = self.verbose)
+        
+        
+        self.le = LabelEncoder()
+        self.le.fit(labels)
 
-        self.clf.fit(X,y)
+    def fit(self, X, y):
+        self.clf.fit(X,y = self.le.transform(y))
 
 
     def predict(self, X):
-        X = self.preprocessing.transform(X)
+        return(self.le.inverse_transform(
+            np.argmax(self.clf.predict(X), axis = 0)
+        ))
 
     def score(self, X, y):
-        """y = self.le.transform(y)
-        X = self.preprocessing.transform(X)
-        X.sort_indices()
-        return(self.model.evaluate(X, y, verbose = False)[1])"""
-        y = self.le.transform(y)
-        return(self.clf.score(X,y))
+        return(self.clf.score(X,y = self.le.transform(y)))
 
 if __name__ == "__main__":
     X = [
@@ -93,7 +88,7 @@ if __name__ == "__main__":
         'Alberto',
         'Pablo',
     ]
-    model = AuthorshipModel(
+    model = Authorship(
         labels = list(np.unique(y))
     )
     model.fit(X,y)

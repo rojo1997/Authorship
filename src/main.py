@@ -15,7 +15,9 @@ from sklearn.preprocessing import LabelEncoder
 
 from functions import real_xml, filter_df
 
-from MLP.AuthorshipModel import AuthorshipModel
+from TFIDFANOVAMLP.Authorship import Authorship as MLP
+from TFIDFAVOVASVM.Authorship import Authorship as SVM
+from SESEPCNN.Authorship import Authorship as SEPCNN
 
 def main():
     random_state = 1
@@ -33,12 +35,8 @@ def main():
     if nfiles == None: df = filter_df(df, nwords = nwords, frecuency = frecuency)
     print("Filtro sobre Dataset: ", df.shape)
 
-    le = LabelEncoder()
-    le.fit(df['name'])
-    #print("Etiquetas codificadas: ", le.classes_)
-
     print('Numero de documentos: ', df.shape[0])
-    print('Etiquetas: ', len(le.classes_))
+    print('Etiquetas: ', df['name'].unique().shape[0])
 
     X_train, X_test, y_train, y_test = train_test_split(
         df['text'],
@@ -49,14 +47,28 @@ def main():
     print("Train: ", X_train.shape)
     print("Test: ", X_test.shape)
 
-    clf = AuthorshipModel(
+    """clf = MLP(
         labels = list(np.unique(df['name'])),
         k = 20000,
         max_features = 100000,
-        units = 64,
-        layers = 3,
+        units = 96,
+        layers = 1,
         dropout_rate = 0.3,
         epochs = 50,
+        verbose = True
+    )"""
+
+    """clf = SVM(
+        labels = list(np.unique(df['name'])),
+        k = 20000,
+        max_features = 100000,
+        verbose = True
+    )"""
+
+    clf = SEPCNN(
+        labels = list(np.unique(df['name'])),
+        dropout_rate = 0.2,
+        epochs = 25,
         verbose = True
     )
 
@@ -66,6 +78,8 @@ def main():
 
     print("best_score_", clf.clf['GridSearchCV'].best_score_)
     print("best_params_", clf.clf['GridSearchCV'].best_params_)
+    print("best_params_", clf.clf['GridSearchCV'].cv_results_)
+    print("best_params_", clf.clf['GridSearchCV'].cv)
 
     print("Accuracy train: ", clf.score(X = X_train, y = y_train))
     print("Accuracy test: ", clf.score(X = X_test, y = y_test))
