@@ -8,10 +8,10 @@ from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 import numpy as np
 
 from Preprocessing.Sequences import Sequences
-from SESEPCNN.sepcnn_model import sepcnn_model
+from SELSTM.lstm_model import lstm_model
 
 class Authorship(BaseEstimator, ClassifierMixin):
-    def __init__(self, labels, maxlen = 350, num_words = 25000, dropout_rate = 0.2, epochs = 50, verbose = False):
+    def __init__(self, labels, maxlen = 100, num_words = 25000, dropout_rate = 0.2, epochs = 50, verbose = False):
         self.verbose = verbose
         self.maxlen = maxlen
         self.num_words = num_words
@@ -24,20 +24,19 @@ class Authorship(BaseEstimator, ClassifierMixin):
             maxlen = self.maxlen
         )
         self.param_grid = {
-            'dropout_rate': [0.1,0.2,0.3],
-            'blocks': [1,2,3]
+            'dropout_rate': [0.2],
+            'layers': [1,2]
         }
         self.clf = Pipeline([
             ('preprocessing', self.preprocessing),
             ('GridSearchCV', GridSearchCV(
                 estimator = KerasClassifier(
-                    sepcnn_model,
+                    lstm_model,
                     dropout_rate = self.dropout_rate,
                     input_shape = (self.maxlen,),
                     num_classes = self.num_classes,
                     num_features = self.num_words,
                     batch_size = 256,
-                    filters = 64,
                     epochs = self.epochs,
                     verbose = 2
                 ),

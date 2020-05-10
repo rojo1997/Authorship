@@ -29,9 +29,10 @@ class Authorship(BaseEstimator, ClassifierMixin):
             max_features = self.max_features
         )
         self.param_grid = {
-            'units': [self.units]
+            'units': [self.units - 32,self.units, self.units + 32],
+            'dropout_rate': [0.2,0.3,0.4],
         }
-        self.clf = Pipeline([
+        """self.clf = Pipeline([
             ('preprocessing', self.preprocessing),
             ('GridSearchCV', GridSearchCV(
                 estimator = KerasClassifier(
@@ -49,6 +50,20 @@ class Authorship(BaseEstimator, ClassifierMixin):
                 param_grid = self.param_grid,
                 verbose = self.verbose
             ))
+        ], verbose = self.verbose)"""
+        self.clf = Pipeline([
+            ('preprocessing', self.preprocessing),
+            ('mlp_model', KerasClassifier(
+                mlp_model,
+                input_shape = self.k,
+                num_classes = self.num_classes,
+                layers = self.layers,
+                units = self.units,
+                dropout_rate = self.dropout_rate,
+                epochs = self.epochs,
+                batch_size = 1024,
+                verbose = False
+            ))
         ], verbose = self.verbose)
         
         
@@ -60,9 +75,7 @@ class Authorship(BaseEstimator, ClassifierMixin):
 
 
     def predict(self, X):
-        return(self.le.inverse_transform(
-            np.argmax(self.clf.predict(X), axis = 0)
-        ))
+        return(self.le.inverse_transform(self.clf.predict(X)))
 
     def score(self, X, y):
         return(self.clf.score(X,y = self.le.transform(y)))

@@ -18,6 +18,7 @@ from functions import real_xml, filter_df
 from TFIDFANOVAMLP.Authorship import Authorship as MLP
 from TFIDFAVOVASVM.Authorship import Authorship as SVM
 from SESEPCNN.Authorship import Authorship as SEPCNN
+from SELSTM.Authorship import Authorship as LSTM
 
 def main():
     random_state = 1
@@ -54,7 +55,7 @@ def main():
         units = 96,
         layers = 1,
         dropout_rate = 0.3,
-        epochs = 50,
+        epochs = 100,
         verbose = True
     )"""
 
@@ -65,10 +66,17 @@ def main():
         verbose = True
     )"""
 
-    clf = SEPCNN(
+    """clf = SEPCNN(
         labels = list(np.unique(df['name'])),
         dropout_rate = 0.2,
-        epochs = 25,
+        epochs = 100,
+        verbose = True
+    )"""
+
+    clf = LSTM(
+        labels = list(np.unique(df['name'])),
+        dropout_rate = 0.2,
+        epochs = 100,
         verbose = True
     )
 
@@ -76,17 +84,17 @@ def main():
     clf.fit(X = X_train, y = y_train)
     print(time.strftime("%X"))
 
-    print("best_score_", clf.clf['GridSearchCV'].best_score_)
+    """print("best_score_", clf.clf['GridSearchCV'].best_score_)
     print("best_params_", clf.clf['GridSearchCV'].best_params_)
     print("best_params_", clf.clf['GridSearchCV'].cv_results_)
-    print("best_params_", clf.clf['GridSearchCV'].cv)
+    print("best_params_", clf.clf['GridSearchCV'].cv)"""
 
     print("Accuracy train: ", clf.score(X = X_train, y = y_train))
     print("Accuracy test: ", clf.score(X = X_test, y = y_test))
-    
+
     print(time.strftime("%X"))
 
-    """y_test_pred = clf.predict(X = X_test)
+    y_test_pred = clf.predict(X = X_test)
     print(classification_report(y_test, y_test_pred))
     report = classification_report(y_test, y_test_pred, output_dict=True)
     pd.DataFrame(report).transpose().to_csv('data/report.txt')
@@ -94,11 +102,14 @@ def main():
     np.savetxt('data/confusion_matrix_normalize.txt', confusion_matrix(y_test, y_test_pred), delimiter=',')
     print(confusion_matrix(y_test, y_test_pred))
     np.savetxt('data/confusion_matrix.txt', confusion_matrix(y_test, y_test_pred), delimiter=',')
+    """
 
     print("best_score_", clf.clf.best_score_)
     print("best_params_", clf.clf.best_params_)
     print("cv_results_", clf.clf.cv_results_)
     print("cv", clf.clf.cv)
+
+    
 
     with open('model/classifier.pkl', 'wb+') as file:
         pickle.dump(clf, file)"""
