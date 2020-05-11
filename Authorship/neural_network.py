@@ -8,13 +8,14 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras import Input
 
-def mlp_model(layers, units, dropout_rate, input_shape, num_classes):
+def MLPClassifier(layers, units, dropout_rate, input_shape, num_classes, sparse = True):
     model = Sequential()
-    model.add(Input(
-        batch_size = 1024,
-        shape = input_shape, 
-        sparse = True
-    ))
+    if sparse:
+        model.add(Input(
+            batch_size = 1024,
+            shape = input_shape, 
+            sparse = True
+        ))
     
     model.add(Dense(
         units = units, 
@@ -46,13 +47,3 @@ def mlp_model(layers, units, dropout_rate, input_shape, num_classes):
     )
 
     return(model)
-
-if __name__ == "__main__":
-    model = mlp_model(
-        layers = 3,
-        units = 32,
-        dropout_rate = 0.2,
-        input_shape = (20000,),
-        num_classes = 5
-    )
-    print(model.summary())

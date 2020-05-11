@@ -80,13 +80,10 @@ def feature_extraction (data):
 
 def filter_df(df, nwords = 3, frecuency = 10):
     df['nwords'] = df['text'].apply(lambda s: len(s.split(' ')))
-    print("antes: ", df.shape)
     df.drop(df[df['nwords'] <= nwords].index, inplace = True)
-    print("despues: ", df.shape)
     groups = df['name'].value_counts()
     df["gr"] = df.name.map(lambda n: float(groups.get(key = n)))
     df.drop(df[df.gr <= frecuency].index, inplace = True)
-    print('despues: ', df.shape)
     return(df)
 
 def real_xml(path = 'iniciativas08/', nfiles = None):
@@ -113,7 +110,9 @@ def real_xml(path = 'iniciativas08/', nfiles = None):
             })
     df = pd.DataFrame(df, columns = ['name','text'])
 
-    filters = [line.replace('\n', '').strip() for line in open('replace.txt', 'r', encoding = 'utf8').readlines()]
+    replace_file = open('Authorship/replace.txt', 'r', encoding = 'utf8')
+    filters = [line.replace('\n', '').strip() for line in replace_file.readlines()]
+    replace_file.close()
 
     my_filter = re.compile('|'.join(map(re.escape, filters)))
 

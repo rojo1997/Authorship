@@ -13,12 +13,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
 
-from functions import real_xml, filter_df
+from Authorship.functions import real_xml, filter_df
 
-from TFIDFANOVAMLP.Authorship import Authorship as MLP
-from TFIDFAVOVASVM.Authorship import Authorship as SVM
-from SESEPCNN.Authorship import Authorship as SEPCNN
-from SELSTM.Authorship import Authorship as LSTM
+from Authorship.TFIDFANOVAMLP.Authorship import Authorship as MLP
+from Authorship.TFIDFAVOVASVM.Authorship import Authorship as SVM
+from Authorship.SESEPCNN.Authorship import Authorship as SEPCNN
+from Authorship.SELSTM.Authorship import Authorship as LSTM
 
 def main():
     random_state = 1

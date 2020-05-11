@@ -7,8 +7,8 @@ from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
 import numpy as np
 
-from Preprocessing.Sequences import Sequences
-from SESEPCNN.sepcnn_model import sepcnn_model
+from Authorship.Preprocessing.Sequences import Sequences
+from Authorship.SESEPCNN.sepcnn_model import sepcnn_model
 
 class Authorship(BaseEstimator, ClassifierMixin):
     def __init__(self, labels, maxlen = 350, num_words = 25000, dropout_rate = 0.2, epochs = 50, verbose = False):
