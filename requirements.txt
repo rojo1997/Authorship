@@ -9,4 +9,7 @@ setuptools
 wheel
 tensorflow
 tensorflow_hub
+tensorflow_text
 WordCloud
+multiprocess
+googletrans

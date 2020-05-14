@@ -14,6 +14,7 @@ from string import punctuation
 import numpy as np
 
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+import tensorflow as tf
 
 # Extraccion y filtrado de datos
 from Authorship.functions import real_xml, filter_df
@@ -40,8 +41,9 @@ from sklearn.decomposition import TruncatedSVD as LSA
 from sklearn.decomposition import NMF
 #from Authorship.neural_network import MLPClassifier
 
-from Authorship.preprocessing import StopWords, Stemmer
+from Authorship.preprocessing import StopWords, Stemmer, Puntuation, Translate
 from Authorship.feature_extration.text import Sequences
+from Authorship.neural_network import LSTMClassifier
 
 """from Authorship.TFIDFANOVAMLP.Authorship import Authorship as MLP
 from Authorship.TFIDFAVOVASVM.Authorship import Authorship as SVM
@@ -65,7 +67,7 @@ class AuthorshipTest(unittest.TestCase):
 
         # Parametros TfidfVectorizer
         self.TfidfVectorizer_params = {
-            'stop_words': stopwords.words("spanish") + list(punctuation),
+            'stop_words': stopwords.words("spanish"),
             'max_features': 100000,
             'ngram_range': (1,2),
             'analyzer': 'word',
@@ -73,7 +75,7 @@ class AuthorshipTest(unittest.TestCase):
             'dtype': np.float32,
             'min_df': 1.0 / 1000.0,
             'max_df': 999.0 / 1000.0,
-            'strip_accents': 'unicode',
+            'strip_accents': None,
             'decode_error': 'replace',
             'lowercase': True
         }
@@ -86,7 +88,7 @@ class AuthorshipTest(unittest.TestCase):
         # Parametros MLPClassifier
         self.MLPClassifier_params = {
             'layers': 1,
-            'units': 96,
+            'units': 128,
             'dropout_rate': 0.3,
             'epochs': 100,
             'batch_size': 1024,
@@ -151,10 +153,19 @@ class AuthorshipTest(unittest.TestCase):
 
         # Parametros Sequences
         self.Sequences_params = {
-            'num_words': 50000, 
-            'maxlen': 250, 
+            'num_words': 15000, 
+            'maxlen': 200, 
             'padding': 'post', 
             'truncating': 'post'
+        }
+
+        # Parametros LSTMClassifier
+        self.LSTMClassifier_params = {
+            'embedding_dim': 150,
+            'dropout_rate': 0.4,
+            'epochs': 40,
+            'input_shape': (self.Sequences_params['maxlen'],),
+            'num_features': self.Sequences_params['num_words'],
         }
 
     def test_read_xml_filter(self):
@@ -178,21 +189,33 @@ class AuthorshipTest(unittest.TestCase):
         labels = list(np.unique(df['name']))
         num_classes = len(labels)
 
+        model = KerasClassifier(
+            MLPClassifier,
+            num_classes = num_classes,
+            **self.MLPClassifier_params
+        )
+        param_grid = {
+            'layers': [1],
+            'units': [128],
+            'dropout_rate': [0.3]
+        }
         clf = Pipeline(steps = [
+            ('Puntuation', Puntuation()),
             ('TfidfVectorizer', TfidfVectorizer(
                 **self.TfidfVectorizer_params
             )),
             ('ANOVA', ANOVA(
                 **self.ANOVA_params
             )),
-            ('MLPClassifier', KerasClassifier(
-                MLPClassifier,
-                num_classes = num_classes,
-                **self.MLPClassifier_params
+            ('GridSearchCV', GridSearchCV(
+                estimator = model,
+                param_grid = param_grid,
+                verbose = self.verbose
             ))
         ], verbose = True)
 
         clf.fit(X_train, y_train)
+        print(clf['GridSearchCV'].best_params_)
         print("Accuracy train: ", clf.score(X = X_train, y = y_train))
         print("Accuracy test: ", clf.score(X = X_test, y = y_test))
 
@@ -215,19 +238,30 @@ class AuthorshipTest(unittest.TestCase):
         labels = list(np.unique(df['name']))
         num_classes = len(labels)
 
+        model = LinearSVC(
+            **self.LinearSVC_params
+        )
+        param_grid = {
+            'C': [0.9,1.0,1.1]
+        }
         clf = Pipeline(steps = [
+            ('Puntuation', Puntuation()),
             ('TfidfVectorizer', TfidfVectorizer(
                 **self.TfidfVectorizer_params
             )),
             ('ANOVA', ANOVA(
                 **self.ANOVA_params
             )),
-            ('LinearSVC', LinearSVC(
-                **self.LinearSVC_params
+            ('GridSearchCV', GridSearchCV(
+                estimator = model,
+                param_grid = param_grid,
+                verbose = self.verbose,
+                n_jobs = 4
             ))
         ], verbose = True)
 
         clf.fit(X_train, y_train)
+        print(clf['GridSearchCV'].best_params_)
         print("Accuracy train: ", clf.score(X = X_train, y = y_train))
         print("Accuracy test: ", clf.score(X = X_test, y = y_test))
 
@@ -341,7 +375,8 @@ class AuthorshipTest(unittest.TestCase):
         df = real_xml('./iniciativas08/', nfiles = self.nfiles)
         if self.subset != None: df = df.sample(self.sample, random_state = self.random_state)
         if self.nfiles == None: df = filter_df(df, nwords = self.nwords, frecuency = self.frecuency)
-        df = df.head(10000)
+        df = df.head(2000)
+        print(df['name'].value_counts())
         X_train, X_test, y_train, y_test = train_test_split(
             df['text'],
             df['name'],
@@ -352,20 +387,55 @@ class AuthorshipTest(unittest.TestCase):
         labels = list(np.unique(df['name']))
         num_classes = len(labels)
 
+        param_grid = {
+            'embedding_dim': [100],
+            'dropout_rate': [0.3]
+        }
+
+        model = KerasClassifier(
+            LSTMClassifier,
+            num_classes = num_classes,
+            **self.LSTMClassifier_params,
+            verbose = 2,
+            validation_split = 0.1,
+            batch_size = 64 * 2
+        )
+
+        """callback = tf.keras.callbacks.EarlyStopping(
+            monitor = 'loss', 
+            patience = 3
+        )
+
+        model.set_params(callbacks = [callback])"""
+
         clf = Pipeline(steps = [
-            ('StopWords', StopWords(
-                **self.StopWords_params
-            )),
-            ('Stemmer', Stemmer(
-                **self.Stemmer_params
-            )),
+            #('Translate', Translate(src = 'es', dest = 'en')),
+            ('Puntuation', Puntuation()),
+            ('StopWords', StopWords(language = 'spanish')),
+            #('Stemmer', Stemmer(language = 'spanish')),
             ('Sequences', Sequences(
                 **self.Sequences_params
+            )),
+            ('GridSearchCV', GridSearchCV(
+                estimator = model,
+                param_grid = param_grid,
+                verbose = True
             ))
         ], verbose = True)
 
         clf.fit(X_train, y_train)
-        print(clf.transform(X_test))
+
+        print(clf['GridSearchCV'].best_params_)
+        print("Accuracy train: ", clf.score(X = X_train, y = y_train))
+        print("Accuracy test: ", clf.score(X = X_test, y = y_test))
+
+        y_test_pred = clf.predict(X = X_test)
+        print(classification_report(y_test, y_test_pred))
+
+    def test_translate(self):
+        from googletrans import Translator
+        translator = Translator()
+        print(translator.translate('hola.', src = 'es'))
 
 if __name__ == "__main__":
     unittest.main(verbosity = 2)

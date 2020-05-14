@@ -18,8 +18,8 @@ import xml.etree.ElementTree as ET
 stemmer = SnowballStemmer('spanish')
 
 def clean(text):
-    text = re.sub("[^a-zA-Z]", " ", str(text))
-    return (re.sub("^\d+\s|\s\d+\s|\s\d+$", " ", text))
+    text = re.sub("[^a-zA-ZÁÉÍÓÚáéíóúñ.,:;\?¿]", " ", str(text)).replace('..','.')
+    return(' '.join(text.split()).strip())
 
 def nphrases(str):
     p = str.count('.')
@@ -99,14 +99,14 @@ def real_xml(path = 'iniciativas08/', nfiles = None):
     else: files = pd.DataFrame(files, columns = ['file']).head(nfiles)
 
     files['intervenciones'] = files['file'].apply(
-        lambda f: ET.parse(f).findall('iniciativa/intervencion')
+        lambda f: ET.parse(open(f, 'r', encoding = 'utf-8')).findall('iniciativa/intervencion')
     )
     
     for _,intervenciones in files['intervenciones'].iteritems():
         for intervencion in intervenciones:
             df.append({
                 'name': intervencion.findtext('interviniente'),
-                'text': '. '.join([str(parrafo.text) for parrafo in intervencion.findall('discurso/parrafo')])
+                'text': '. '.join([str(parrafo.text).encode('utf8').decode('utf8', 'replace') for parrafo in intervencion.findall('discurso/parrafo')])
             })
     df = pd.DataFrame(df, columns = ['name','text'])
 
