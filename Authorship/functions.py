@@ -18,8 +18,11 @@ import xml.etree.ElementTree as ET
 stemmer = SnowballStemmer('spanish')
 
 def clean(text):
-    text = re.sub("[^a-zA-ZÁÉÍÓÚáéíóúñ.,:;\?¿]", " ", str(text)).replace('..','.')
-    return(' '.join(text.split()).strip())
+    text = re.sub(r"\[[\w\W]*\]", "", str(text))
+    text = re.sub(r"[^0-9a-zA-ZÁÉÍÓÚáéíóúñÑ.,:;\?¿\!¡\(\)]", " ", text)
+    text = re.sub(r'[\s\t\n]+', " ", text)
+    text = re.sub(r'^[.,:;\s]*', "", text)
+    return(text.strip())
 
 def nphrases(str):
     p = str.count('.')
@@ -128,17 +131,17 @@ def real_xml(path = 'iniciativas08/', nfiles = None):
         ).strip()
     )
 
-    
-
     df['name'] = df['name'].apply(lambda name:
         my_filter.sub("", name).strip()
     )
 
+    df['text'] = df['text'].apply(clean)
+
     df.drop(df[df['name'] == ''].index,inplace = True)
+    df.drop(df[df['text'] == ''].index,inplace = True)
 
-    df['text'] = df['text'].apply(lambda text: clean(text.replace('-','')))
-
-    df['name'] = df['name'].apply(lambda name: name.upper())
     df['name'] = df['name'].apply(lambda name: ' '.join(name.split(' ')[:4]))
+    df['name'] = df['name'].apply(lambda name: name.upper().replace('PRESIDENTE DE', '').strip())
+
 
     return(df)

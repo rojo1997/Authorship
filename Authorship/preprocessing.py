@@ -10,6 +10,8 @@ import pandas as pd
 import re
 from googletrans import Translator
 
+min_parallel = 200
+
 def parallel_apply(df, func, n_cores, n_jobs):
     df_split = np.array_split(df, n_jobs)
     pool = Pool(n_cores)
@@ -26,7 +28,7 @@ class Stemmer(BaseEstimator, TransformerMixin):
         return(self)
 
     def transform(self, X):
-        if X.shape[0] < 100:
+        if X.shape[0] < min_parallel:
             return(X.astype(str).apply(lambda f: ' '.join([self.stemmer.stem(v) for v in f.lower().split(' ')])))
         else:
             return(parallel_apply(
@@ -40,17 +42,23 @@ class Stemmer(BaseEstimator, TransformerMixin):
         self.fit(X,y)
         return(self.transform(X))
 
-
 class StopWords(BaseEstimator, TransformerMixin):
     def __init__(self, language = 'spanish'):
-        self.stop_words = stopwords.words(language)
+        self.stop_words = set(stopwords.words(language))
 
     def fit(self, X, y):
-        self.my_filter = re.compile('|'.join(map(lambda s: re.escape(' ' + s + ' '), self.stop_words)))
         return(self)
 
     def transform(self, X):
-        return(X.astype(str).apply(lambda s: self.my_filter.sub(' ', s.lower())))
+        if X.shape[0] < min_parallel:
+            return(X.astype(str).apply(lambda s: ' '.join([s for s in s.split(' ') if s.lower() not in self.stop_words])))
+        else:
+            return(parallel_apply(
+                X, 
+                lambda df: df.apply(lambda s: ' '.join([s for s in s.split(' ') if s.lower() not in self.stop_words])),
+                n_cores = 4,
+                n_jobs = 4
+            ))
 
     def fit_transform(self, X, y):
         self.fit(X,y)
@@ -65,11 +73,24 @@ class Puntuation(BaseEstimator, TransformerMixin):
         return(self)
 
     def transform(self, X):
-        return(X.astype(str).apply(lambda s: s.replace('.','').replace(',','').replace(':','').replace(';','').replace('?','').replace('¿','')))
+        if X.shape[0] < min_parallel:
+            return(X.astype(str).apply(self.replace))
+        else:
+            return(parallel_apply(
+                X, 
+                lambda df: df.astype(str).apply(self.replace),
+                n_cores = 4,
+                n_jobs = 4
+            ))
 
     def fit_transform(self, X, y):
         self.fit(X,y)
         return(self.transform(X))
+
+    def replace(self, text):
+        for p in self.puntuation:
+            text = text.replace('p', '')
+        return(text)
 
 class Translate(BaseEstimator, TransformerMixin):
     def __init__(self, src = 'es', dest = 'en'):
