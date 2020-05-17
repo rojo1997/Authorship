@@ -60,13 +60,14 @@ def MLPClassifier(layers, units, dropout_rate, input_shape, num_classes, sparse 
 
     return(model)
 
-def GRUClassifier(layers, embedding_dim, dropout_rate, input_shape, num_classes, num_features):
+def GRUClassifier(layers, embedding_dim, units, dropout_rate, regularize, input_shape, num_classes, num_features):
     model = Sequential()
 
     model.add(Embedding(
         input_dim = num_features,
         output_dim = embedding_dim,
-        input_length = input_shape[0]
+        input_length = input_shape[0],
+        embeddings_regularizer = regularizers.l2(regularize)
     ))
 
     model.add(Dropout(
@@ -74,13 +75,19 @@ def GRUClassifier(layers, embedding_dim, dropout_rate, input_shape, num_classes,
     ))
 
     for _ in range(layers):
-        model.add(GRU(embedding_dim, return_sequences = True))
+        model.add(GRU(
+            units = units, 
+            return_sequences = True,
+            bias_initializer = 'random_uniform',
+            kernel_regularizer = regularizers.l2(regularize), 
+            recurrent_regularizer = regularizers.l2(regularize),
+            bias_regularizer = regularizers.l2(regularize)
+        ))
         model.add(Dropout(
             rate = dropout_rate
         ))
 
     model.add(GlobalAveragePooling1D())
-    #model.add(GRU(128))
 
     model.add(Dense(
         units = num_classes if num_classes > 2 else 1, 
@@ -169,7 +176,7 @@ def SC1DClassifier(layers, embedding_dim, filters, kernel_size, regularize, drop
         model.add(MaxPooling1D(2))
 
     model.add(SeparableConv1D(
-        filters = filters * 2,
+        filters = filters,
         padding = 'same',
         kernel_size = kernel_size,
         activation = 'relu',

@@ -165,11 +165,17 @@ class AuthorshipTest(unittest.TestCase):
 
         # Parametros Sequences
         self.Sequences_params = {
-            'num_words': 15000, 
+            'num_words': 10000, 
             'maxlen': 256, 
             'padding': 'post', 
             'truncating': 'post'
         }
+        """self.Sequences_params = {
+            'num_words': 15000, 
+            'maxlen': 256, 
+            'padding': 'post', 
+            'truncating': 'post'
+        }"""
 
         # Parametros LSTMClassifier
         self.LSTMClassifier_params = {
@@ -198,7 +204,7 @@ class AuthorshipTest(unittest.TestCase):
             'kernel_size': 3,
             'regularize': 1e-5,
             'dropout_rate': 0.1,
-            'epochs': 40,
+            'epochs': 80,
             'input_shape': (self.Sequences_params['maxlen'],),
             'num_features': self.Sequences_params['num_words'],
         }
@@ -222,7 +228,7 @@ class AuthorshipTest(unittest.TestCase):
 
         from googletrans import Translator
         translator = Translator()
-        print(translator.translate('hola.', src = 'es'))
+        print(translator.translate('hola que tal', src = 'es'))
 
         print('='.join(['' for n in range(80)]))
         sys.stdout = stdout
@@ -301,7 +307,7 @@ class AuthorshipTest(unittest.TestCase):
         )
         param_grid = {
             'layers': [1,2],
-            'units': [32,64,128,128 + 16],
+            'units': [32,64,96,128],
             'dropout_rate': [0.1,0.2,0.3,0.4]
         }
         clf = Pipeline(steps = [
@@ -334,11 +340,11 @@ class AuthorshipTest(unittest.TestCase):
             **self.LinearSVC_params
         )
         param_grid = {
-            'C': [0.1,0.5,1.0,1.5,2,2.5]
+            'C': [0.5,1.0,5,10,25,50,75,100]
         }
         clf = Pipeline(steps = [
             ('Puntuation', Puntuation()),
-            ('Stemmer', Stemmer(language = 'spanish')),
+            #('Stemmer', Stemmer(language = 'spanish')),
             ('TfidfVectorizer', TfidfVectorizer(
                 **self.TfidfVectorizer_params
             )),
@@ -369,8 +375,8 @@ class AuthorshipTest(unittest.TestCase):
         )
         param_grid = {
             'layers': [1,2],
-            'units': [128],
-            'dropout_rate': [0.3]
+            'units': [32,64,96,128],
+            'dropout_rate': [0.1,0.2,0.3,0.4]
         }
         clf = Pipeline(steps = [
             ('TfidfVectorizer', TfidfVectorizer(
@@ -405,8 +411,8 @@ class AuthorshipTest(unittest.TestCase):
         )
         param_grid = {
             'layers': [1,2],
-            'units': [64,96],
-            'dropout_rate': [0.2,0.3]
+            'units': [32,64,96,128],
+            'dropout_rate': [0.1,0.2,0.3,0.4]
         }
         clf = Pipeline(steps = [
             ('TfidfVectorizer', TfidfVectorizer(
@@ -480,36 +486,29 @@ class AuthorshipTest(unittest.TestCase):
 
     def test_StopWords_Stemmer_Sequences_GRU(self):
         name = sys._getframe().f_code.co_name
-        X_train, X_test, y_train, y_test, num_classes = self.open(name)
+        X_train, X_test, y_train, y_test, num_classes = self.open(name, change_stdout = False)
 
         param_grid = {
-            'layers': [1],
-            'embedding_dim': [256 + 128],
-            'dropout_rate': [0.1,0.2,0.3]
+            'layers': [2],
+            'units': [64],
+            'dropout_rate': [0.2],
+            'regularize': [1e-4]
         }
-        # 1, 75, 0.1: 27
 
         model = KerasClassifier(
             GRUClassifier,
             num_classes = num_classes,
             **self.GRUClassifier_params,
             verbose = 2,
-            batch_size = 64 * 2,
-            #validation_split = 0.1
+            batch_size = 64,
+            validation_split = 0.1
         )
-
-        """callback = tf.keras.callbacks.EarlyStopping(
-            monitor = 'loss', 
-            patience = 3
-        )
-
-        model.set_params(callbacks = [callback])"""
 
         clf = Pipeline(steps = [
             #('Translate', Translate(src = 'es', dest = 'en')),
             ('Puntuation', Puntuation()),
             ('StopWords', StopWords(language = 'spanish')),
-            ('Stemmer', Stemmer(language = 'spanish')),
+            #('Stemmer', Stemmer(language = 'spanish')),
             ('Sequences', Sequences(
                 **self.Sequences_params
             )),
@@ -518,7 +517,7 @@ class AuthorshipTest(unittest.TestCase):
                 param_grid = param_grid,
                 cv = 5,
                 n_jobs = 1,
-                verbose = 9
+                verbose = True
             ))
         ], verbose = True)
 
@@ -529,13 +528,14 @@ class AuthorshipTest(unittest.TestCase):
 
     def test_StopWords_Stemmer_Sequences_SC1D(self):
         name = sys._getframe().f_code.co_name
-        X_train, X_test, y_train, y_test, num_classes = self.open(name)
+        X_train, X_test, y_train, y_test, num_classes = self.open(name, change_stdout = False)
 
         param_grid = {
             'layers': [1],
-            'filters': [64, 64 + 16],
-            'dropout_rate': [0.1,0.2],
-            'regularize': [1e-5]
+            'filters': [128],
+            'dropout_rate': [0.2],
+            'regularize': [1e-5],
+            'kernel_size': [5]
         }
         # 1, 75, 0.1: 27
 
@@ -543,19 +543,10 @@ class AuthorshipTest(unittest.TestCase):
             SC1DClassifier,
             num_classes = num_classes,
             **self.SC1DClassifier_params,
-            verbose = False,
+            verbose = 2,
             batch_size = 64,
-            #validation_split = 0.1
+            validation_split = 0.1
         )
-
-        #print(model.model.summary())
-
-        """callback = tf.keras.callbacks.EarlyStopping(
-            monitor = 'loss', 
-            patience = 3
-        )
-
-        model.set_params(callbacks = [callback])"""
 
         clf = Pipeline(steps = [
             #('Translate', Translate(src = 'es', dest = 'en')),
@@ -579,14 +570,15 @@ class AuthorshipTest(unittest.TestCase):
         self.close(name, clf, param_grid, X_train, X_test, y_train, y_test)
         return(True)
 
-    def open(self, name):
-        self.stdout = sys.stdout
-        sys.stdout = open('results/' + name + '.txt', encoding = 'utf-8', mode = 'w+')
+    def open(self, name, change_stdout = True):
+        if change_stdout:
+            self.stdout = sys.stdout
+            sys.stdout = open('results/' + name + '.txt', encoding = 'utf-8', mode = 'w+')
 
         df = real_xml('./iniciativas08/', nfiles = self.nfiles)
         if self.subset != None: df = df.sample(self.sample, random_state = self.random_state)
         if self.nfiles == None: df = filter_df(df, nwords = self.nwords, frecuency = self.frecuency)
-        df = df.head(100)
+        #df = df.head(100)
         X_train, X_test, y_train, y_test = train_test_split(
             df['text'],
             df['name'],
@@ -620,6 +612,16 @@ class AuthorshipTest(unittest.TestCase):
         )
 
         if isinstance(clf['GridSearchCV'].best_estimator_, tf.keras.wrappers.scikit_learn.KerasClassifier):
+            print(clf['GridSearchCV'].best_estimator_.model.summary())
+            tf.keras.utils.plot_model(
+                clf['GridSearchCV'].best_estimator_.model, 
+                to_file = 'images/' + name + '_keras.png', 
+                show_shapes = True, 
+                show_layer_names = True,
+                rankdir = 'TB', 
+                expand_nested = True, 
+                dpi = 400
+            )
             clf['GridSearchCV'].best_estimator_.model.save('models/model_' + name + '.h5')
             clf['GridSearchCV'].best_estimator_.model = None
         file_out = open('models/model_' + name + '.pkl', mode = 'wb+')
@@ -689,7 +691,29 @@ class AuthorshipTest(unittest.TestCase):
                 plt.title('Puntuación media: ' + param + ' ' + '' if len(param_rest) == 0 else str([p + '=' + str(best_params_[p]) for p in param_rest]))
                 
                 fig.savefig(
-                    'images/' + name + '_' + param,
+                    'images/' + name + '_' + param + '_fix',
+                    dpi = 400
+                )
+                fig.clf()
+                fig, ax = plt.subplots()
+                ax.fill_between(
+                    df['values'].values, 
+                    df['mean'] - df['std'],
+                    df['mean'] + df['std'],
+                    color = 'blue',
+                    alpha = 0.1
+                )
+                ax.plot(
+                    df['values'].values,
+                    df['mean'].values,
+                    color = 'black'
+                )
+                plt.xlabel(param)
+                plt.ylabel('Puntuación media')
+                plt.title('Puntuación media: ' + param + ' ' + '' if len(param_rest) == 0 else str([p + '=' + str(best_params_[p]) for p in param_rest]))
+                
+                fig.savefig(
+                    'images/' + name + '_' + param + '_no_fix',
                     dpi = 400
                 )
                 fig.clf()

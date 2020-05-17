@@ -13,3 +13,5 @@ tensorflow_text
 WordCloud
 multiprocess
 googletrans
+pydot3
+graphviz
