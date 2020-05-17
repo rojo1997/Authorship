@@ -102,7 +102,8 @@ def real_xml(path = 'iniciativas08/', nfiles = None):
     else: files = pd.DataFrame(files, columns = ['file']).head(nfiles)
 
     files['intervenciones'] = files['file'].apply(
-        lambda f: ET.parse(open(f, 'r', encoding = 'utf-8')).findall('iniciativa/intervencion')
+        lambda f: ET.parse(f).findall('iniciativa/intervencion')
+        #lambda f: ET.parse(open(f, 'r', encoding = 'utf-8')).findall('iniciativa/intervencion')
     )
     
     for _,intervenciones in files['intervenciones'].iteritems():

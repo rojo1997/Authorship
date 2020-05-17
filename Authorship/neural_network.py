@@ -24,7 +24,7 @@ def MLPClassifier(layers, units, dropout_rate, input_shape, num_classes, sparse 
     model = Sequential()
     if sparse:
         model.add(Input(
-            batch_size = 1024,
+            batch_size = 256,
             shape = input_shape, 
             sparse = True
         ))

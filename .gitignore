@@ -2,3 +2,6 @@
 **/*.csv
 **/*.pyc
 **/*.pkl
+**/*.png
+**/*.h5
+results/*.txt
