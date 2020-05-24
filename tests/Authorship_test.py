@@ -1,13 +1,11 @@
 import unittest
 import time
-from dill import load, dump
-import matplotlib.pyplot as plt
 import sys
+import os
+
 sys.path[0] = sys.path[0].replace('\\tests','')
 
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
-from sklearn.metrics import classification_report, confusion_matrix
+from tests.MLPlatform import MLPlatform
 
 from nltk.corpus import stopwords
 from string import punctuation
@@ -15,45 +13,62 @@ from string import punctuation
 import pandas as pd
 import numpy as np
 
-from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 import tensorflow as tf
 
-# Extraccion y filtrado de datos
-from Authorship.functions import real_xml, filter_df, clean
+from keras.callbacks import EarlyStopping
 
-# MODELO: TfidfVectorizer, ANOVA, MLPClasiffier
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder
+
+from sklearn.model_selection import (
+    train_test_split, 
+    cross_val_score, 
+    GridSearchCV
+)
+
+from sklearn.metrics import (
+    classification_report, 
+    confusion_matrix
+)
+
+from Authorship.functions import (
+    real_xml, 
+    filter_df, 
+    clean
+)
+
 from Authorship.feature_selection import ANOVA
-from Authorship.neural_network import MLPClassifier
 
-# MODELO: test_TfidfVectorizer_ANOVA_SVCLinear
-#from sklearn.feature_extraction.text import TfidfVectorizer
-#from Authorship.feature_selection import ANOVA
 from sklearn.svm import LinearSVC
 
-# MODELO: test_TfidfVectorizer_ANOVA_LSA_MLPClasiffier
-#from sklearn.feature_extraction.text import TfidfVectorizer
-#from Authorship.feature_selection import ANOVA
-from sklearn.decomposition import TruncatedSVD as LSA
-#from Authorship.neural_network import MLPClassifier
+from sklearn.decomposition import (
+    TruncatedSVD as LSA,
+    NMF
+)
 
-# MODELO: test_TfidfVectorizer_ANOVA_NMF_MLPClasiffier
-#from sklearn.feature_extraction.text import TfidfVectorizer
-#from Authorship.feature_selection import ANOVA
-from sklearn.decomposition import NMF
-#from Authorship.neural_network import MLPClassifier
+from Authorship.preprocessing import (
+    StopWords, 
+    Stemmer, 
+    Lemmatizer,
+    Puntuation, 
+    Translate,
+    PosTag
+)
 
-from Authorship.preprocessing import StopWords, Stemmer, Puntuation, Translate
 from Authorship.feature_extration.text import Sequences
-from Authorship.neural_network import LSTMClassifier, GRUClassifier, SC1DClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
 
-"""from Authorship.TFIDFANOVAMLP.Authorship import Authorship as MLP
-from Authorship.TFIDFAVOVASVM.Authorship import Authorship as SVM
-from Authorship.SESEPCNN.Authorship import Authorship as SEPCNN
-from Authorship.SELSTM.Authorship import Authorship as LSTM"""
+from Authorship.neural_network import (
+    MLPClassifier,
+    LSTMClassifier, 
+    GRUClassifier, 
+    SC1DClassifier,
+    Conv1D_SingleKernel,
+    Conv1D_MultiKernel
+)
 
 
-class AuthorshipTest(unittest.TestCase):
+class AuthorshipTest(unittest.TestCase, MLPlatform):
     def __init__(self, *args, **kwargs):
         super(AuthorshipTest, self).__init__(*args, **kwargs)
 
@@ -68,18 +83,10 @@ class AuthorshipTest(unittest.TestCase):
         self.verbose = True
 
         # Salida de datos
-        sys.stderr = open('results/stderr.txt', encoding = 'utf-8', mode = 'a')
-        self.stdout = open('results/stdout.txt', encoding = 'utf-8', mode = 'a')
-        """try:
-            self.stdout = open('results/report.txt', encoding = 'utf-8', mode = 'a')
-        except:
-            pass
-        else:
-            self.stdout = open('results/report.txt', encoding = 'utf-8', mode = 'w')"""
+        
 
         # Parametros TfidfVectorizer
         self.TfidfVectorizer_params = {
-            'stop_words': stopwords.words("spanish"),
             'max_features': 100000,
             'ngram_range': (1,2),
             'analyzer': 'word',
@@ -100,13 +107,9 @@ class AuthorshipTest(unittest.TestCase):
         # Parametros MLPClassifier
         self.MLPClassifier_params = {
             'layers': 1,
-            'units': 128,
-            'dropout_rate': 0.3,
-            'epochs': 100,
-            'batch_size': 256,
-            'input_shape': self.ANOVA_params['k'],
-            'sparse': True,
-            'verbose': False
+            'epochs': 30,
+            'input_shape': (self.ANOVA_params['k'],),
+            'verbose': 2
         }
 
         # Parametros LinearSVC
@@ -127,13 +130,13 @@ class AuthorshipTest(unittest.TestCase):
         # Parametros MLPClassifier
         self.MLPClassifier_params_2 = {
             'layers': 1,
-            'units': 128,
+            'units': 20,
             'dropout_rate': 0.3,
             'epochs': 150,
             'batch_size': 1024,
             'input_shape': self.LSA_params['n_components'],
             'sparse': False,
-            'verbose': False
+            'verbose': 2
         }
 
         # Parametros NMF
@@ -153,10 +156,7 @@ class AuthorshipTest(unittest.TestCase):
             'verbose': False
         }
 
-        # Parametros StopWords
-        self.StopWords_params = {
-            'stop_words': stopwords.words("spanish")
-        }
+        
 
         # Parametros Stemmer
         self.Stemmer_params = {
@@ -171,8 +171,8 @@ class AuthorshipTest(unittest.TestCase):
             'truncating': 'post'
         }
         """self.Sequences_params = {
-            'num_words': 15000, 
-            'maxlen': 256, 
+            'num_words': 60000, 
+            'maxlen': 512 + 128, 
             'padding': 'post', 
             'truncating': 'post'
         }"""
@@ -210,131 +210,142 @@ class AuthorshipTest(unittest.TestCase):
         }
 
     def test_read_xml_filter(self):
-        stdout = sys.stdout
-        sys.stdout = open('results/' + sys._getframe().f_code.co_name + '.txt', encoding = 'utf-8', mode = 'w+')
-        
-        df = real_xml('./iniciativas08/', nfiles = self.nfiles)
-        print('datos xml: ', df.shape)
-        if self.subset != None: df = df.sample(self.sample, random_state = self.random_state)
-        if self.nfiles == None: df = filter_df(df, nwords = self.nwords, frecuency = self.frecuency)
-        print('datos despues del filtro: ', df.shape)
+        name = sys._getframe().f_code.co_name
+        X_train, X_test, y_train, y_test, num_classes = self.open(name)
 
         print('='.join(['' for n in range(80)]))
-        sys.stdout = stdout
+        sys.stdout.close()
+        sys.stderr.close()
+        sys.stdout = self.stdout
 
     def test_translate(self):
-        stdout = sys.stdout
-        sys.stdout = open('results/' + sys._getframe().f_code.co_name + '.txt', encoding = 'utf-8', mode = 'w+')
-
-        from googletrans import Translator
-        translator = Translator()
-        print(translator.translate('hola que tal', src = 'es'))
-
-        print('='.join(['' for n in range(80)]))
-        sys.stdout = stdout
-
-    def test_words(self):
-        stdout = open('results/' + sys._getframe().f_code.co_name + '.txt', encoding = 'utf-8', mode = 'w+')
-
-        df = real_xml('./iniciativas08/', nfiles = self.nfiles)
-        if self.subset != None: df = df.sample(self.sample, random_state = self.random_state)
-        if self.nfiles == None: df = filter_df(df, nwords = self.nwords, frecuency = self.frecuency)
-        
-        print(df['name'].value_counts())
-        X_train, X_test, y_train, y_test = train_test_split(
-            df['text'],
-            df['name'],
-            test_size = self.test_size,
-            random_state = self.random_state
-        )
+        X_train = pd.Series(['La casa del barrio esta en mi municipio'])
 
         clf = Pipeline(steps = [
-            #('Translate', Translate(src = 'es', dest = 'en')),
+            ('Translate', Translate(src = 'es', dest = 'en')),
+        ], verbose = True)
+        result = clf.fit_transform(X_train)
+        print(result)
+        
+        return(True)
+
+    def test_stemmer(self):
+        X_train = pd.Series(['La casa del barrio esta en mi municipio'])
+
+        clf = Pipeline(steps = [
             ('Puntuation', Puntuation()),
             ('StopWords', StopWords(language = 'spanish')),
             ('Stemmer', Stemmer(language = 'spanish')),
         ], verbose = True)
-
-        X_train['text'] = clf.fit_transform(X_train, y_train)
-        print(X_train['text'])
-        print(X_train['text'])
-        X_train['nwords'] = X_train['text'].apply(lambda s: len(s.split(' ')))
-        print(X_train['nwords'].describe())
-
-        print('='.join(['' for n in range(80)]))
-        sys.stdout = stdout
-    
-    def test_stop(self):
-        stdout = open('results/' + sys._getframe().f_code.co_name + '.txt', encoding = 'utf-8', mode = 'w+')
-
-        """print(self.TfidfVectorizer_params['stop_words'])"""
-        print('sería' in self.TfidfVectorizer_params['stop_words'])
+        result = clf.fit_transform(X_train)
+        print(result)
         
-        #print('|'.join(map(lambda s: re.escape(' ' + s + ' '), self.TfidfVectorizer_params['stop_words'])))
-        import re
-        print('[' + '|'.join(["( |^)" + w + "( |^)" for w in self.TfidfVectorizer_params['stop_words']]) + ']*')
-        filters = re.compile('[' + '|'.join(["( |^)" + w + "( |^)" for w in self.TfidfVectorizer_params['stop_words']]) + ']*')
-        a = filters.sub(' ', 'la casa tiena la tendrá sería que Es soy '.lower())
-        print(a)
-        b = filters.sub(' ', a.lower())
-        print(b)
-        c = filters.sub(' ', b.lower())
-        print(c)
+        return(True)
+    
+    def test_lemmatizer(self):
+        X_train = pd.Series(['It gives us the measure of how far the predictions were from the actual output.'])
 
-        print('='.join(['' for n in range(80)]))
-        sys.stdout = stdout
+        clf = Pipeline(steps = [
+            ('Lemmatizer', Lemmatizer()),
+        ], verbose = True)
+        result = clf.fit_transform(X_train)
+        print(result)
+
+        return(True)
+
+    def test_pos_tag(self):
+        X_train = pd.Series(['It gives us the measure of how far the predictions were from the actual output.'])
+
+        clf = Pipeline(steps = [
+            ('PosTag', PosTag()),
+        ], verbose = True)
+        result = clf.fit_transform(X_train)
+        print(result)
+        
+        return(True)
+
+    def test_stop(self):
+        X_train = pd.Series(['La casa del barrio esta en mi municipio'])
+
+        clf = Pipeline(steps = [
+            ('Puntuation', Puntuation()),
+            ('StopWords', StopWords(language = 'spanish'))
+        ], verbose = True)
+        result = clf.fit_transform(X_train)
+        print(result)
+        
+        return(True)
 
     def test_clean(self):
-        stdout = open('results/' + sys._getframe().f_code.co_name + '.txt', encoding = 'utf-8', mode = 'w+')
-
         frase = '  ¿Esto es una    prueba de  [pausa] limpieza (3.0)  ?!! Sería        buena'
         print(clean(frase))
-        for w in stopwords.words("spanish"):
-            print(w, sep = '', end = ', ')
-        #print(stopwords.words("spanish"))
-
-        print('='.join(['' for n in range(80)]))
-        sys.stdout = stdout
 
     def test_TfidfVectorizer_ANOVA_MLPClassifier(self):
         name = sys._getframe().f_code.co_name
-        X_train, X_test, y_train, y_test, num_classes = self.open(name)
+        X_train, X_test, y_train, y_test, num_classes, encoder = self.read_data(name, change_stdout = False)
 
-        model = KerasClassifier(
-            MLPClassifier,
-            num_classes = num_classes,
-            **self.MLPClassifier_params
-        )
-        param_grid = {
-            'layers': [1,2],
-            'units': [32,64,96,128],
-            'dropout_rate': [0.1,0.2,0.3,0.4]
-        }
-        clf = Pipeline(steps = [
+        y_train_encoder = encoder.transform(y_train)
+        y_test_encoder = encoder.transform(y_test)
+
+        preprocessing = Pipeline(steps = [
             ('Puntuation', Puntuation()),
-            ('Stemmer', Stemmer(language = 'spanish')),
+            ('StopWords', StopWords(language = 'spanish')),
+            #('Stemmer', Stemmer(language = 'spanish')),
             ('TfidfVectorizer', TfidfVectorizer(
-                **self.TfidfVectorizer_params
+                max_features = 100000,
+                ngram_range = (1,2),
+                analyzer = 'word',
+                encoding = 'utf8',
+                dtype = np.float32,
+                min_df = 1.0 / 1000.0,
+                max_df = 999.0 / 1000.0,
+                strip_accents = None,
+                decode_error = 'replace',
+                lowercase = True
             )),
             ('ANOVA', ANOVA(
-                **self.ANOVA_params
-            )),
-            ('GridSearchCV', GridSearchCV(
-                estimator = model,
-                param_grid = param_grid,
-                verbose = self.verbose,
-                cv = 5
+                k = 20000
             ))
         ], verbose = True)
 
-        clf.fit(X_train, y_train)
+        X_train_preprocessing = preprocessing.fit_transform(X_train, y_train)
         
-        self.close(name, clf, param_grid, X_train, X_test, y_train, y_test)
+        clf = MLPClassifier(
+            input_shape = (20000,),
+            num_classes = num_classes,
+        )
+
+        clf.fit(
+            X_train_preprocessing,
+            y_train_encoder,
+            batch_size = 128,
+            epochs = 40,
+            validation_split = 0.1,
+            verbose = 2
+        )
+
+        print(clf.summary())
+        
+        print(clf.evaluate(
+            X_train_preprocessing, 
+            y_train_encoder, 
+            batch_size = 128, 
+            verbose = False
+        ))
+
+        X_test_preprocessing = preprocessing.transform(X_test)
+
+        print(clf.evaluate(
+            X_test_preprocessing, 
+            y_test_encoder, 
+            batch_size = 128,
+            verbose = False
+        ))
         return(True)
     
     def test_TfidfVectorizer_ANOVA_LinearSVC(self):
         name = sys._getframe().f_code.co_name
-        X_train, X_test, y_train, y_test, num_classes = self.open(name)
+        X_train, X_test, y_train, y_test, num_classes = self.read_data(name)
 
         model = LinearSVC(
             **self.LinearSVC_params
@@ -344,7 +355,7 @@ class AuthorshipTest(unittest.TestCase):
         }
         clf = Pipeline(steps = [
             ('Puntuation', Puntuation()),
-            #('Stemmer', Stemmer(language = 'spanish')),
+            ('Stemmer', Stemmer(language = 'spanish')),
             ('TfidfVectorizer', TfidfVectorizer(
                 **self.TfidfVectorizer_params
             )),
@@ -361,7 +372,25 @@ class AuthorshipTest(unittest.TestCase):
 
         clf.fit(X_train, y_train)
         
-        self.close(name, clf, param_grid, X_train, X_test, y_train, y_test)
+        self.gridsearchcv_graph(
+            name = name, 
+            gridsearchcv = clf['GridSearchCV']
+        )
+        self.generate_report(
+            name = name,
+            clf = clf,
+            X_train = X_train,
+            X_test = X_test,
+            y_train = y_train,
+            y_test = y_test,
+            gridsearchcv = clf['GridSearchCV']
+        )
+        self.dump_model(
+            name = name,
+            clf = clf, 
+            keras_model = None
+        )
+        self.close()
         return(True)
 
     def test_TfidfVectorizer_ANOVA_LSA_MLPClassifier(self):
@@ -375,7 +404,7 @@ class AuthorshipTest(unittest.TestCase):
         )
         param_grid = {
             'layers': [1,2],
-            'units': [32,64,96,128],
+            'units': [32,64,96],
             'dropout_rate': [0.1,0.2,0.3,0.4]
         }
         clf = Pipeline(steps = [
@@ -528,10 +557,10 @@ class AuthorshipTest(unittest.TestCase):
 
     def test_StopWords_Stemmer_Sequences_SC1D(self):
         name = sys._getframe().f_code.co_name
-        X_train, X_test, y_train, y_test, num_classes = self.open(name, change_stdout = False)
+        X_train, X_test, y_train, y_test, num_classes = self.read_data(name)
 
         param_grid = {
-            'layers': [1],
+            'layers': [3],
             'filters': [128],
             'dropout_rate': [0.2],
             'regularize': [1e-5],
@@ -566,19 +595,112 @@ class AuthorshipTest(unittest.TestCase):
         ], verbose = True)
 
         clf.fit(X_train, y_train)
-        
-        self.close(name, clf, param_grid, X_train, X_test, y_train, y_test)
+
+        self.gridsearchcv_graph(
+            name = name, 
+            gridsearchcv = clf['GridSearchCV']
+        )
+        self.generate_report(
+            name = name,
+            clf = clf,
+            X_train = X_train,
+            X_test = X_test,
+            y_train = y_train,
+            y_test = y_test,
+            gridsearchcv = clf['GridSearchCV']
+        )
+        self.dump_model(
+            name = name,
+            clf = clf, 
+            keras_model = None
+        )
+        self.close()
+        return(True)
+    
+    def test_StopWords_Stemmer_Sequences_SC1D_m(self):
+        name = sys._getframe().f_code.co_name
+        X_train, X_test, y_train, y_test, num_classes, encoder = self.read_data(name, change_stdout = False)
+
+        y_train_encoder = encoder.transform(y_train)
+        y_test_encoder = encoder.transform(y_test)
+
+        maxlen = 512 + 128
+        num_words = 60000
+
+        preprocessing = Pipeline(steps = [
+            #('Translate', Translate(src = 'es', dest = 'en')),
+            ('Puntuation', Puntuation()),
+            ('StopWords', StopWords(language = 'spanish')),
+            #('Stemmer', Stemmer(language = 'spanish')),
+            ('Sequences', Sequences(
+                num_words = num_words, 
+                maxlen = maxlen, 
+                padding = 'post', 
+                truncating = 'post'
+            ))
+        ], verbose = True)
+
+        X_train_preprocessing = preprocessing.fit_transform(X_train, y_train)
+
+        """clf = Embedding_Conv1D_GlobalMaxPooling1D_Dense(
+            layers = 1,
+            embedding_dim = 1024 + 512,
+            filters = 512,
+            kernel_size = 3,
+            regularization = 1e-4,
+            dropout_rate = 0.2,
+            input_shape = (maxlen,),
+            num_classes = num_classes,
+            num_features = num_words
+        )"""
+        clf = Conv1D_MultiKernel(
+            embedding_dim = 1024,
+            fkl = [
+                (64,    1,  1),
+                (512,   3,  1),
+                (16,    5,  1)
+            ],
+            regularization = 1e-5,
+            dropout_rate = 0.2,
+            input_shape = (maxlen,),
+            num_classes = num_classes,
+            num_features = num_words
+        )
+        print(clf.summary())
+
+        clf.fit(
+            X_train_preprocessing,
+            y_train_encoder,
+            batch_size = 128,
+            epochs = 40,
+            validation_split = 0.1,
+            verbose = 2
+        )
+
+        print(clf.evaluate(
+            X_train_preprocessing, 
+            y_train_encoder, 
+            batch_size = 128, 
+            verbose = False
+        ))
+
+        X_test_preprocessing = preprocessing.transform(X_test)
+
+        print(clf.evaluate(
+            X_test_preprocessing, 
+            y_test_encoder, 
+            batch_size = 128,
+            verbose = False
+        ))
         return(True)
 
-    def open(self, name, change_stdout = True):
-        if change_stdout:
-            self.stdout = sys.stdout
-            sys.stdout = open('results/' + name + '.txt', encoding = 'utf-8', mode = 'w+')
+    def read_data(self, name, change_stdout = True):
+        super(AuthorshipTest, self).read_data(name, change_stdout = change_stdout)
 
         df = real_xml('./iniciativas08/', nfiles = self.nfiles)
         if self.subset != None: df = df.sample(self.sample, random_state = self.random_state)
         if self.nfiles == None: df = filter_df(df, nwords = self.nwords, frecuency = self.frecuency)
-        #df = df.head(100)
+        #df = df.head(3000)
         X_train, X_test, y_train, y_test = train_test_split(
             df['text'],
             df['name'],
@@ -591,145 +713,20 @@ class AuthorshipTest(unittest.TestCase):
         labels = list(np.unique(df['name']))
         num_classes = len(labels)
 
-        return(X_train, X_test, y_train, y_test, num_classes)
+        encoder = LabelEncoder()
+        encoder.fit(df['name'])
 
-    def close(self, name, clf, param_grid, X_train, X_test, y_train, y_test):
-        print(clf['GridSearchCV'].best_params_)
-        print(clf['GridSearchCV'].cv_results_)
-        print(clf['GridSearchCV'].cv)
-        print("Accuracy train: ", clf.score(X = X_train, y = y_train))
-        print("Accuracy test: ", clf.score(X = X_test, y = y_test))
-        y_test_pred = clf.predict(X = X_test)
-        print(classification_report(y_test, y_test_pred))
-        print(confusion_matrix(y_test, y_test_pred))
+        return(X_train, X_test, y_train, y_test, num_classes, encoder)
 
-        self.graph(
-            name, 
-            clf['GridSearchCV'].best_index_, 
-            clf['GridSearchCV'].cv_results_,
-            clf['GridSearchCV'].best_params_,
-            param_grid
-        )
+    def test_load_model(self):
+        name = 'test_TfidfVectorizer_ANOVA_LinearSVC'
+        name = 'test_TfidfVectorizer_ANOVA_MLPClassifier'
+        clf = self.load_model(name)
+        while True:
+            frase = 'hola que tal'
+            print(clf.predict(pd.Series([frase], name = 'text')))
+    
 
-        if isinstance(clf['GridSearchCV'].best_estimator_, tf.keras.wrappers.scikit_learn.KerasClassifier):
-            print(clf['GridSearchCV'].best_estimator_.model.summary())
-            tf.keras.utils.plot_model(
-                clf['GridSearchCV'].best_estimator_.model, 
-                to_file = 'images/' + name + '_keras.png', 
-                show_shapes = True, 
-                show_layer_names = True,
-                rankdir = 'TB', 
-                expand_nested = True, 
-                dpi = 400
-            )
-            clf['GridSearchCV'].best_estimator_.model.save('models/model_' + name + '.h5')
-            clf['GridSearchCV'].best_estimator_.model = None
-        file_out = open('models/model_' + name + '.pkl', mode = 'wb+')
-        dump(clf, file_out)
-        file_out.close()
-
-        print('='.join(['' for n in range(80)]))
-        sys.stdout = self.stdout
-
-    def graph(self, name, best_index_, cv_results_, best_params_, param_grid):
-        X = [
-            'Div 0',
-            'Div 1',
-            'Div 2',
-            'Div 3',
-            'Div 4',
-        ]
-        Y = [
-            cv_results_['split0_test_score'][best_index_],
-            cv_results_['split1_test_score'][best_index_],
-            cv_results_['split2_test_score'][best_index_],
-            cv_results_['split3_test_score'][best_index_],
-            cv_results_['split4_test_score'][best_index_],
-        ]
-        fig, ax = plt.subplots()
-        ax.bar(X,Y)
-        plt.xlabel('Divisiones')
-        plt.ylabel('Puntuación')
-        plt.title('Mejor puntuación: ' + str(best_params_))
-        fig.savefig(
-            'images/' + name + 'best_score_splits',
-            dpi = 400
-        )
-        fig.clf()
-
-        for param, values in param_grid.items():
-            if len(values) == 1: continue
-            param_rest = [*param_grid]
-            param_rest.remove(param)
-            index, Y = map(list,zip(*[
-                (cv_results_['params'].index(ps),ps[param]) 
-                for ps in cv_results_['params'] 
-                if all([best_params_[p] == ps[p] for p in param_rest])
-            ]))
-            df = pd.DataFrame(columns = ['values','mean', 'std'])
-            df['values'] = Y
-            df['mean'] = cv_results_['mean_test_score'][index]
-            df['std'] = cv_results_['std_test_score'][index]
-            df.fillna(value = 0.0, inplace = True)
-            if df['values'].dtype == 'float64' or df['values'].dtype == 'int64':
-                fig, ax = plt.subplots()
-                ax.set(ylim=(0.0, 1.0))
-                ax.fill_between(
-                    df['values'].values, 
-                    df['mean'] - df['std'],
-                    df['mean'] + df['std'],
-                    color = 'blue',
-                    alpha = 0.1
-                )
-                ax.plot(
-                    df['values'].values,
-                    df['mean'].values,
-                    color = 'black'
-                )
-                plt.xlabel(param)
-                plt.ylabel('Puntuación media')
-                plt.title('Puntuación media: ' + param + ' ' + '' if len(param_rest) == 0 else str([p + '=' + str(best_params_[p]) for p in param_rest]))
-                
-                fig.savefig(
-                    'images/' + name + '_' + param + '_fix',
-                    dpi = 400
-                )
-                fig.clf()
-                fig, ax = plt.subplots()
-                ax.fill_between(
-                    df['values'].values, 
-                    df['mean'] - df['std'],
-                    df['mean'] + df['std'],
-                    color = 'blue',
-                    alpha = 0.1
-                )
-                ax.plot(
-                    df['values'].values,
-                    df['mean'].values,
-                    color = 'black'
-                )
-                plt.xlabel(param)
-                plt.ylabel('Puntuación media')
-                plt.title('Puntuación media: ' + param + ' ' + '' if len(param_rest) == 0 else str([p + '=' + str(best_params_[p]) for p in param_rest]))
-                
-                fig.savefig(
-                    'images/' + name + '_' + param + '_no_fix',
-                    dpi = 400
-                )
-                fig.clf()
-            else:
-                fig, ax = plt.subplots()
-                ax.bar(df['values'].values,df['mean'].values)
-                plt.xlabel(param)
-                plt.ylabel('Puntuación media')
-                plt.title('Puntuación media: ' + param + ' ' + str([p + '=' + str(best_params_[p]) for p in param_rest]))
-                fig.savefig(
-                    'images/' + name + '_' + param,
-                    dpi = 400
-                )
-                fig.clf()
-
-            
 
 if __name__ == "__main__":
     unittest.main(verbosity = 2)
