@@ -17,7 +17,10 @@ import numpy as np
 
 import tensorflow as tf
 
-from keras.callbacks import EarlyStopping
+from keras.callbacks import (
+    EarlyStopping,
+    TensorBoard
+)
 
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
@@ -101,9 +104,9 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
         clf = MLPClassifier(
             input_shape = (30000,),
             num_classes = num_classes,
-            dropout_rate = 0.2,
+            dropout_rate = 0.1,
             regularization = 1e-4,
-            units = [1024 * 2],
+            units = [1024 + 512],
             layers = 1,
             verbose = True
         )
@@ -111,10 +114,12 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
         clf.fit(
             X_train_preprocessing,
             y_train_encoder,
-            batch_size = 128,
-            epochs = 50,
+            batch_size = 64,
+            epochs = 20,
             validation_split = 0.1,
-            callbacks = [EarlyStopping(patience = 3)],
+            callbacks = [
+                EarlyStopping(patience = 3)
+            ],
             verbose = 2
         )
 
@@ -167,104 +172,91 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
         ))
         return(True)
 
+    def test_TfidfVectorizer_ANOVA_LSA_LinearSVC(self):
+        X_train_preprocessing = load('data/gram_preprocessing_train.gz')
+        X_test_preprocessing = load('data/gram_preprocessing_test.gz')
+        y_train_encoder = load('data/y_train_encoder.gz')
+        y_test_encoder = load('data/y_test_encoder.gz')
+        num_classes = load('data/num_classes.gz')
+        encoder = load('data/encoder.gz')
+        print(X_train_preprocessing.shape)
 
-    def test_TfidfVectorizer_ANOVA_LSA_MLPClassifier(self):
-        name = sys._getframe().f_code.co_name
-        X_train, X_test, y_train, y_test, num_classes, encoder = self.read_data(name, change_stdout = False)
-
-        y_train_encoder = encoder.transform(y_train)
-        y_test_encoder = encoder.transform(y_test)
-
-        preprocessing = Pipeline(steps = [
-            ('Puntuation', Puntuation()),
-            ('Stemmer', Stemmer(language = 'spanish')),
-            ('TfidfVectorizer', TfidfVectorizer(
-                max_features = 100000,
-                ngram_range = (1,2),
-                analyzer = 'word',
-                encoding = 'utf8',
-                dtype = np.float32,
-                min_df = 1.0 / 1000.0,
-                max_df = 999.0 / 1000.0,
-                strip_accents = None,
-                decode_error = 'replace',
-                lowercase = True
-            )),
-            ('ANOVA', ANOVA(
-                k = 20000
-            )),
-            ('LSA', LSA(
-                n_components = 700,
-                n_iter = 15
-            )),
-        ], verbose = True)
-
-        X_train_preprocessing = preprocessing.fit_transform(X_train, y_train)
+        lsa = LSA(
+            n_components = 1000,
+            n_iter = 15,
+            random_state = self.random_state
+        )
+        X_train_preprocessing_lsa = lsa.fit_transform(X_train_preprocessing, y_train_encoder)
+        X_test_preprocessing_lsa = lsa.transform(X_test_preprocessing)
 
         clf = LinearSVC(
             C = 1.0,
             penalty = 'l2',
             dual = True,
             loss = 'squared_hinge',
-            max_iter = 5000,
+            max_iter = 10000,
+            random_state = self.random_state
         )
 
-        clf.fit(X_train_preprocessing, y_train_encoder)
-        
-        print(clf.score(X_train_preprocessing, y_train_encoder))
-
-        X_test_preprocessing = preprocessing.transform(X_test)
-
-        print(clf.score(X_test_preprocessing, y_test_encoder))
+        clf.fit(X_train_preprocessing_lsa, y_train_encoder)
+        print(clf.score(X_train_preprocessing_lsa, y_train_encoder))
+        print(clf.score(X_test_preprocessing_lsa, y_test_encoder))
+        y_test_pred = clf.predict(X_test_preprocessing_lsa)
+        print(classification_report(
+            encoder.inverse_transform(y_test_encoder),
+            encoder.inverse_transform(y_test_pred),
+        ))
         return(True)
 
-    def test_TfidfVectorizer_ANOVA_NMF_MLPClassifier(self):
-        name = sys._getframe().f_code.co_name
-        X_train, X_test, y_train, y_test, num_classes, encoder = self.read_data(name, change_stdout = False)
+    def test_TfidfVectorizer_ANOVA_LSA_MLPClassifier(self):
+        X_train_preprocessing = load('data/gram_lsa_preprocessing_train.gz')
+        X_test_preprocessing = load('data/gram_lsa_preprocessing_test.gz')
+        y_train_encoder = load('data/y_train_encoder.gz')
+        y_test_encoder = load('data/y_test_encoder.gz')
+        num_classes = load('data/num_classes.gz')
+        encoder = load('data/encoder.gz')
+        print(X_train_preprocessing.shape)
 
-        y_train_encoder = encoder.transform(y_train)
-        y_test_encoder = encoder.transform(y_test)
-
-        preprocessing = Pipeline(steps = [
-            ('Puntuation', Puntuation()),
-            ('Stemmer', Stemmer(language = 'spanish')),
-            ('TfidfVectorizer', TfidfVectorizer(
-                max_features = 100000,
-                ngram_range = (1,2),
-                analyzer = 'word',
-                encoding = 'utf8',
-                dtype = np.float32,
-                min_df = 1.0 / 1000.0,
-                max_df = 999.0 / 1000.0,
-                strip_accents = None,
-                decode_error = 'replace',
-                lowercase = True
-            )),
-            ('ANOVA', ANOVA(
-                k = 20000
-            )),
-            ('NMF', NMF(
-                n_components = 700
-            )),
-        ], verbose = True)
-
-        X_train_preprocessing = preprocessing.fit_transform(X_train, y_train)
-
-        clf = LinearSVC(
-            C = 1.0,
-            penalty = 'l2',
-            dual = True,
-            loss = 'squared_hinge',
-            max_iter = 5000,
+        clf = MLPClassifier(
+            input_shape = (1000,),
+            num_classes = num_classes,
+            dropout_rate = 0.2,
+            regularization = 1e-5 * 3,
+            units = [1000],
+            layers = 1,
+            verbose = True
         )
 
-        clf.fit(X_train_preprocessing, y_train_encoder)
+        clf.fit(
+            X_train_preprocessing,
+            y_train_encoder,
+            batch_size = 64,
+            epochs = 50,
+            validation_split = 0.1,
+            callbacks = [
+                EarlyStopping(patience = 3)
+            ],
+            verbose = 2
+        )
+
+        print(clf.evaluate(
+            X_train_preprocessing, 
+            y_train_encoder, 
+            batch_size = 128, 
+            verbose = False
+        )[1])
+
+        print(clf.evaluate(
+            X_test_preprocessing, 
+            y_test_encoder, 
+            batch_size = 128,
+            verbose = False
+        )[1])
         
-        print(clf.score(X_train_preprocessing, y_train_encoder))
-
-        X_test_preprocessing = preprocessing.transform(X_test)
-
-        print(clf.score(X_test_preprocessing, y_test_encoder))
+        y_test_pred = encoder.inverse_transform(
+            np.argmax(clf.predict(X_test_preprocessing), axis = 1)
+        )
+        print(classification_report(encoder.inverse_transform(y_test_encoder), y_test_pred))
         return(True)
 
 
@@ -284,6 +276,7 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
             embedding_dim = 512,
             embedding_trainable = False,
             filters = 512,
+            kernel_size = 3,
             dropout_rate = 0.3,
             verbose = True,
             regularization = 1e-4 * 1,
@@ -335,7 +328,7 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
             input_shape = (512,),
             num_classes = num_classes,
             num_features = 30000,
-            embedding_dim = 1024 + 512,
+            embedding_dim = 512,
             filters = 512,
             kernel_size = 3,
             regularization = 1e-4,
@@ -385,14 +378,15 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
             input_shape = (512,),
             num_classes = num_classes,
             num_features = 30000,
-            embedding_dim = 1024,
+            embedding_dim = 512,
             fkl = [
                 (64,    1,  1),
                 (512,   3,  1),
-                (16,    5,  1)
+                (128,    5,  1)
             ],
             regularization = 1e-5,
             dropout_rate = 0.2,
+            embedding_trainable = False
         )
 
         clf.fit(
@@ -483,7 +477,12 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
         clf = GRUClassifier(
             input_shape = (512,),
             num_classes = num_classes,
-            num_features = 30000
+            num_features = 30000,
+            embedding_dim = 64,
+            layers = 2,
+            units = 64 + 32,
+            verbose = True,
+            embedding_trainable = True
         )
 
         clf.fit(
@@ -730,14 +729,15 @@ class FeatureExtraction(unittest.TestCase):
 
         preprocessing = Pipeline(steps = [
             ('Puntuation', Puntuation()),
+            ('StopWords', StopWords(language = 'spanish')),
             ('TfidfVectorizer', TfidfVectorizer(
                 max_features = 100000,
                 ngram_range = (1,4),
                 analyzer = 'word',
                 encoding = 'utf8',
                 dtype = np.float32,
-                min_df =   1 / 1000.0,
-                max_df = 9999.0 /  1000.0,
+                min_df =   1.0 / 1000.0,
+                max_df = 9999.0 /  10000.0,
                 strip_accents = None,
                 decode_error = 'replace',
                 lowercase = False
@@ -757,6 +757,43 @@ class FeatureExtraction(unittest.TestCase):
         dump(num_classes, 'data/num_classes.gz')
         dump(encoder, 'data/encoder.gz')
         dump(preprocessing, 'models/gram_preprocessing.gz')
+
+    def test_TfidfVectorizer_ANOVA_LSA(self):
+        X_train, X_test, y_train, y_test, num_classes, encoder = self.read_data()
+
+        y_train_encoder = encoder.transform(y_train)
+        y_test_encoder = encoder.transform(y_test)
+
+        preprocessing = Pipeline(steps = [
+            ('Puntuation', Puntuation()),
+            ('StopWords', StopWords(language = 'spanish')),
+            ('TfidfVectorizer', TfidfVectorizer(
+                max_features = 100000,
+                ngram_range = (1,4),
+                analyzer = 'word',
+                encoding = 'utf8',
+                dtype = np.float32,
+                min_df =   1.0 / 1000.0,
+                max_df = 9999.0 /  10000.0,
+                strip_accents = None,
+                decode_error = 'replace',
+                lowercase = False
+            )),
+            ('ANOVA', ANOVA(
+                k = 30000
+            )),
+            ('LSA', LSA(
+                n_components = 1000,
+                n_iter = 15,
+                random_state = self.random_state
+            ))
+        ], verbose = True)
+
+        X_train_preprocessing = preprocessing.fit_transform(X_train, y_train)
+        X_test_preprocessing = preprocessing.transform(X_test)
+
+        dump(X_train_preprocessing, 'data/gram_lsa_preprocessing_train.gz')
+        dump(X_test_preprocessing, 'data/gram_lsa_preprocessing_test.gz')
 
     def test_TfidfVectorizer(self):
         X_train, X_test, y_train, y_test, num_classes, encoder = self.read_data()

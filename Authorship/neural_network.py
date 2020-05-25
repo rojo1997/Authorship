@@ -92,7 +92,7 @@ def GRUClassifier(
         dropout_rate = 0.1,
         regularization = 1e-5, 
         embedding_trainable = False,
-        dtype = np.int32,
+        dtype = np.float32,
         optimizer = Adam(),
         metrics = ['acc'],
         verbose = False
@@ -105,48 +105,37 @@ def GRUClassifier(
 
     embedded_sequences = Embedding(
         input_dim = num_features,
-        output_dim = embedding_dim,
+        output_dim = 128,
         input_length = input_shape[0],
-        trainable = embedding_trainable,
+        trainable = True,
         embeddings_initializer = "uniform"
     ) (sequence_input)
 
-    x = Dropout(
-        rate = dropout_rate
+    x = SeparableConv1D(
+        filters = 256,
+        padding = 'same',
+        kernel_size = 3,
+        activation = 'relu',
+        bias_initializer = 'random_uniform'
     ) (embedded_sequences)
 
-    for _ in range(layers - 1):
-        x = GRU(
-            units = units,
-            activation = "tanh",
-            recurrent_activation = "sigmoid",
-            bias_initializer = 'zeros',
-            kernel_regularizer = regularizers.l2(regularization), 
-            recurrent_regularizer = regularizers.l2(regularization),
-            bias_regularizer = regularizers.l2(regularization),
-            dropout = dropout_rate,
-            recurrent_dropout = dropout_rate,
-            return_sequences = True,
-        ) (x)
+    """x = SeparableConv1D(
+        filters = 256,
+        padding = 'same',
+        kernel_size = 3,
+        activation = 'relu',
+        bias_initializer = 'random_uniform'
+    ) (x)"""
 
-        x = MaxPooling1D() (x)
-
-        x = Dropout(
-            rate = dropout_rate
-        ) (x)
-
-
-    x = GlobalMaxPooling1D() (x)
+    x = GlobalAveragePooling1D() (x)
 
     x = Dropout(
-        rate = dropout_rate
+        rate = 0.1
     ) (x)
 
     preds = Dense(
         units = num_classes if num_classes > 2 else 1, 
-        activation = 'softmax' if num_classes > 2 else 'sigmoid',
-        kernel_regularizer = regularizers.l2(regularization),
-        bias_regularizer = regularizers.l2(regularization),
+        activation = 'softmax' if num_classes > 2 else 'sigmoid'
     ) (x)
 
     model = Model(sequence_input, preds)
@@ -156,7 +145,7 @@ def GRUClassifier(
 
     model.compile(
         loss = 'sparse_categorical_crossentropy',
-        optimizer = optimizer,
+        optimizer = 'rmsprop',
         metrics = metrics
     )
 
