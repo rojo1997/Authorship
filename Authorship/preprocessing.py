@@ -97,7 +97,6 @@ class Puntuation(BaseEstimator, TransformerMixin):
         self.puntuation = list(punctuation) + ['¿','¡']
 
     def fit(self, X, y):
-        self.my_filter = re.compile('|'.join(map(lambda s: re.escape(s), self.puntuation)))
         return(self)
 
     def transform(self, X):

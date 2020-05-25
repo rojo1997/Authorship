@@ -1,8 +1,5 @@
-# Tipo de modelo
 from keras import Model
 import tensorflow as tf
-
-print (tf.version)
 
 from keras.optimizers import (
     Adam, 
@@ -51,9 +48,11 @@ def MLPClassifier(
         dtype = dtype
     )
 
-    for _ in range(layers - 1):
+    x = None
+
+    for _ in range(layers):
         x = Dense(
-            units = units, 
+            units = units if isinstance(units,int) else units[_], 
             activation = 'relu',
             kernel_regularizer = regularizers.l2(regularization),
             bias_regularizer = regularizers.l2(regularization), 
@@ -68,7 +67,7 @@ def MLPClassifier(
         activation = 'softmax' if num_classes > 2 else 'sigmoid',
         kernel_regularizer = regularizers.l2(regularization),
         bias_regularizer = regularizers.l2(regularization),
-    ) (x if layers > 1 else sequence_input)
+    ) (sequence_input if layers == 0 or layers == None else x)
 
     model = Model(sequence_input, preds)
 
@@ -78,168 +77,185 @@ def MLPClassifier(
         metrics = ['acc']
     )
 
-    if verbose != False:
+    if verbose:
         print(model.summary())
 
     return(model)
 
-def GRUClassifier(layers, embedding_dim, units, dropout_rate, regularize, input_shape, num_classes, num_features):
-    model = Sequential()
+def GRUClassifier(
+        input_shape,
+        num_classes,
+        num_features,
+        embedding_dim = 256,
+        layers = 1,
+        units = 64, 
+        dropout_rate = 0.1,
+        regularization = 1e-5, 
+        embedding_trainable = False,
+        dtype = np.int32,
+        optimizer = Adam(),
+        metrics = ['acc'],
+        verbose = False
+    ):
 
-    model.add(Embedding(
+    sequence_input = Input(
+        shape = input_shape,
+        dtype = dtype
+    )
+
+    embedded_sequences = Embedding(
         input_dim = num_features,
         output_dim = embedding_dim,
         input_length = input_shape[0],
-        embeddings_regularizer = regularizers.l2(regularize)
-    ))
+        trainable = embedding_trainable,
+        embeddings_initializer = "uniform"
+    ) (sequence_input)
 
-    model.add(Dropout(
+    x = Dropout(
         rate = dropout_rate
-    ))
+    ) (embedded_sequences)
 
-    for _ in range(layers):
-        model.add(GRU(
-            units = units, 
+    for _ in range(layers - 1):
+        x = GRU(
+            units = units,
+            activation = "tanh",
+            recurrent_activation = "sigmoid",
+            bias_initializer = 'zeros',
+            kernel_regularizer = regularizers.l2(regularization), 
+            recurrent_regularizer = regularizers.l2(regularization),
+            bias_regularizer = regularizers.l2(regularization),
+            dropout = dropout_rate,
+            recurrent_dropout = dropout_rate,
             return_sequences = True,
-            bias_initializer = 'random_uniform',
-            kernel_regularizer = regularizers.l2(regularize), 
-            recurrent_regularizer = regularizers.l2(regularize),
-            bias_regularizer = regularizers.l2(regularize)
-        ))
-        model.add(Dropout(
+        ) (x)
+
+        x = MaxPooling1D() (x)
+
+        x = Dropout(
             rate = dropout_rate
-        ))
+        ) (x)
 
-    model.add(GlobalAveragePooling1D())
 
-    model.add(Dense(
+    x = GlobalMaxPooling1D() (x)
+
+    x = Dropout(
+        rate = dropout_rate
+    ) (x)
+
+    preds = Dense(
         units = num_classes if num_classes > 2 else 1, 
-        activation = 'softmax' if num_classes > 2 else 'sigmoid'
-    ))
+        activation = 'softmax' if num_classes > 2 else 'sigmoid',
+        kernel_regularizer = regularizers.l2(regularization),
+        bias_regularizer = regularizers.l2(regularization),
+    ) (x)
+
+    model = Model(sequence_input, preds)
+
+    if verbose:
+        print(model.summary())
 
     model.compile(
         loss = 'sparse_categorical_crossentropy',
-        optimizer = 'adam',
-        metrics = ['acc']
+        optimizer = optimizer,
+        metrics = metrics
     )
 
     return(model)
 
 def LSTMClassifier(
-    embedding_dim, 
-    dropout_rate, 
-    input_shape, 
-    num_classes, 
-    num_features, 
-    filters = 64, 
-    kernel_size = 3,
-    pool_size = 2):
+        input_shape,
+        num_classes,
+        num_features,
+        embedding_dim = 256,
+        layers = 1,
+        units = 64, 
+        dropout_rate = 0.1,
+        regularization = 1e-5, 
+        embedding_trainable = False,
+        dtype = np.int32,
+        optimizer = Adam(),
+        metrics = ['acc'],
+        verbose = False
+    ):
 
-    model = Sequential()
-
-    model.add(Embedding(
-        input_dim = num_features,
-        output_dim = embedding_dim,
-        input_length = input_shape[0]
-    ))
-
-    model.add(Dropout(
-        rate = dropout_rate
-    ))
-
-    for _ in range(layers):
-        model.add(LSTM(
-            embedding_dim,
-            dropout = dropout_rate,
-            recurrent_dropout = dropout_rate
-        ))
-        model.add(Dropout(
-            rate = dropout_rate
-        ))
-
-    model.add(GlobalAveragePooling1D())
-
-    model.add(Dense(
-        units = num_classes if num_classes > 2 else 1, 
-        activation = 'softmax' if num_classes > 2 else 'sigmoid'
-    ))
-
-    model.compile(
-        loss = 'sparse_categorical_crossentropy',
-        optimizer = 'adam',
-        metrics = ['acc']
+    sequence_input = Input(
+        shape = input_shape,
+        dtype = dtype
     )
 
-    return(model)
-
-def SC1DClassifier(layers, embedding_dim, filters, kernel_size, regularize, dropout_rate, input_shape, num_classes, num_features):
-    model = Sequential()
-
-    model.add(Embedding(
+    embedded_sequences = Embedding(
         input_dim = num_features,
         output_dim = embedding_dim,
         input_length = input_shape[0],
-        embeddings_regularizer = regularizers.l2(regularize)
-    ))
+        trainable = embedding_trainable,
+        embeddings_initializer = "uniform"
+    ) (sequence_input)
+
+    x = Dropout(
+        rate = dropout_rate
+    ) (embedded_sequences)
 
     for _ in range(layers - 1):
-        model.add(Dropout(
+        x = LSTM(
+            units = units,
+            activation = "tanh",
+            recurrent_activation = "sigmoid",
+            bias_initializer = 'zeros',
+            kernel_regularizer = regularizers.l2(regularization), 
+            recurrent_regularizer = regularizers.l2(regularization),
+            bias_regularizer = regularizers.l2(regularization),
+            dropout = dropout_rate,
+            recurrent_dropout = dropout_rate,
+            return_sequences = True,
+        ) (x)
+
+        x = MaxPooling1D() (x)
+
+        x = Dropout(
             rate = dropout_rate
-        ))
-        model.add(SeparableConv1D(
-            filters = filters,
-            padding = 'same',
-            kernel_size = kernel_size,
-            activation = 'relu',
-            bias_initializer = 'random_uniform',
-            depthwise_initializer = 'random_uniform',
-            depthwise_regularizer = regularizers.l2(regularize),
-            bias_regularizer = regularizers.l2(regularize)
-        ))
-        model.add(MaxPooling1D(2))
+        ) (x)
 
-    model.add(SeparableConv1D(
-        filters = filters,
-        padding = 'same',
-        kernel_size = kernel_size,
-        activation = 'relu',
-        bias_initializer = 'random_uniform',
-        depthwise_initializer = 'random_uniform',
-        depthwise_regularizer = regularizers.l2(0.0001),
-        bias_regularizer = regularizers.l2(0.0001)
-    ))
-    
-    model.add(GlobalAveragePooling1D())
 
-    model.add(Dropout(
+    x = GlobalMaxPooling1D() (x)
+
+    x = Dropout(
         rate = dropout_rate
-    ))
+    ) (x)
 
-    model.add(Dense(
+    preds = Dense(
         units = num_classes if num_classes > 2 else 1, 
-        activation = 'softmax' if num_classes > 2 else 'sigmoid'
-    ))
+        activation = 'softmax' if num_classes > 2 else 'sigmoid',
+        kernel_regularizer = regularizers.l2(regularization),
+        bias_regularizer = regularizers.l2(regularization),
+    ) (x)
+
+    model = Model(sequence_input, preds)
+
+    if verbose:
+        print(model.summary())
 
     model.compile(
         loss = 'sparse_categorical_crossentropy',
-        optimizer = 'adam',
-        metrics = ['acc']
+        optimizer = optimizer,
+        metrics = metrics
     )
+
     return(model)
 
-def Conv1D_SingleKernel(
+def SC1DClassifier(
         input_shape,
         num_classes,
-        num_features = 20000,
+        num_features,
         embedding_dim = 256,
         layers = 1,
         filters = 64, 
         dropout_rate = 0.1,
         kernel_size = 3, 
         regularization = 1e-5, 
-        trainable = False,
+        embedding_trainable = False,
         dtype = np.int32,
         optimizer = Adam(),
+        metrics = ['acc'],
         verbose = False
     ):
 
@@ -251,7 +267,7 @@ def Conv1D_SingleKernel(
         input_dim = num_features,
         output_dim = embedding_dim,
         input_length = input_shape[0],
-        trainable = trainable,
+        trainable = embedding_trainable,
         embeddings_initializer = "uniform"
     ) (sequence_input)
 
@@ -260,9 +276,9 @@ def Conv1D_SingleKernel(
     ) (embedded_sequences)
 
     for _ in range(layers - 1):
-        x = Conv1D(
+        x = SeparableConv1D(
             filters = filters,
-            padding = 'same',
+            padding = 'valid',
             kernel_size = kernel_size,
             activation = 'relu',
             bias_initializer = 'random_uniform',
@@ -271,10 +287,14 @@ def Conv1D_SingleKernel(
         ) (x)
 
         x = MaxPooling1D() (x)
+        
+        x = Dropout(
+            rate = dropout_rate
+        ) (x)
 
-    x = Conv1D(
+    x = SeparableConv1D(
         filters = filters,
-        padding = 'same',
+        padding = 'valid',
         kernel_size = kernel_size,
         activation = 'relu',
         bias_initializer = 'random_uniform',
@@ -297,25 +317,115 @@ def Conv1D_SingleKernel(
 
     model = Model(sequence_input, preds)
 
+    if verbose:
+        print(model.summary())
+
     model.compile(
         loss = 'sparse_categorical_crossentropy',
         optimizer = optimizer,
-        metrics = ['acc']
+        metrics = metrics
     )
 
     return(model)
 
-def Conv1D_MultiKernel(
+def C1DSingleClassifier(
         input_shape,
         num_classes,
-        num_features = 30000,
-        embedding_dim = 512,
+        num_features,
+        embedding_dim = 256,
+        layers = 1,
+        filters = 64, 
+        dropout_rate = 0.1,
+        kernel_size = 3, 
+        regularization = 1e-5, 
+        embedding_trainable = False,
+        dtype = np.int32,
+        optimizer = Adam(),
+        metrics = ['acc'],
+        verbose = False
+    ):
+
+    sequence_input = Input(
+        shape = input_shape,
+        dtype = dtype
+    )
+    embedded_sequences = Embedding(
+        input_dim = num_features,
+        output_dim = embedding_dim,
+        input_length = input_shape[0],
+        trainable = embedding_trainable,
+        embeddings_initializer = "uniform"
+    ) (sequence_input)
+
+    x = Dropout(
+        rate = dropout_rate
+    ) (embedded_sequences)
+
+    for _ in range(layers - 1):
+        x = Conv1D(
+            filters = filters,
+            padding = 'valid',
+            kernel_size = kernel_size,
+            activation = 'relu',
+            bias_initializer = 'random_uniform',
+            kernel_regularizer = regularizers.l2(regularization),
+            bias_regularizer = regularizers.l2(regularization)
+        ) (x)
+
+        x = MaxPooling1D() (x)
+        
+        x = Dropout(
+            rate = dropout_rate
+        ) (x)
+
+    x = Conv1D(
+        filters = filters,
+        padding = 'valid',
+        kernel_size = kernel_size,
+        activation = 'relu',
+        bias_initializer = 'random_uniform',
+        kernel_regularizer = regularizers.l2(regularization),
+        bias_regularizer = regularizers.l2(regularization)
+    ) (x)
+
+    x = GlobalMaxPooling1D() (x)
+
+    x = Dropout(
+        rate = dropout_rate
+    ) (x)
+
+    preds = Dense(
+        units = num_classes if num_classes > 2 else 1, 
+        activation = 'softmax' if num_classes > 2 else 'sigmoid',
+        kernel_regularizer = regularizers.l2(regularization),
+        bias_regularizer = regularizers.l2(regularization),
+    ) (x)
+
+    model = Model(sequence_input, preds)
+
+    if verbose:
+        print(model.summary())
+
+    model.compile(
+        loss = 'sparse_categorical_crossentropy',
+        optimizer = optimizer,
+        metrics = metrics
+    )
+
+    return(model)
+
+def C1DMultiClassifier(
+        input_shape,
+        num_classes,
+        num_features,
+        embedding_dim = 256,
         fkl = [(256,1,1),(128,3,1),(64,5,1),(32,7,1),(16,9,1)],
         dropout_rate = 0.1,
         regularization = 1e-5, 
-        trainable = False,
+        embedding_trainable = False,
         dtype = np.int16,
         optimizer = Adam(),
+        metrics = ['acc'],
         verbose = False
     ):
 
@@ -328,7 +438,7 @@ def Conv1D_MultiKernel(
         input_dim = num_features,
         output_dim = embedding_dim,
         input_length = input_shape[0],
-        trainable = trainable,
+        trainable = embedding_trainable,
         embeddings_initializer = "uniform"
     ) (sequence_input)
 
@@ -351,7 +461,7 @@ def Conv1D_MultiKernel(
         
         x = Conv1D(
             filters = f,
-            padding = 'same',
+            padding = 'valid',
             kernel_size = k,
             activation = 'relu',
             bias_initializer = 'random_uniform',
@@ -368,7 +478,7 @@ def Conv1D_MultiKernel(
 
             x = Conv1D(
                 filters = f,
-                padding = 'same',
+                padding = 'valid',
                 kernel_size = k,
                 activation = 'relu',
                 bias_initializer = 'random_uniform',
@@ -393,37 +503,13 @@ def Conv1D_MultiKernel(
 
     model = Model(sequence_input, preds)
 
+    if verbose:
+        print(model.summary())
+
     model.compile(
         loss = 'sparse_categorical_crossentropy',
         optimizer = optimizer,
-        metrics = ['acc']
+        metrics = metrics
     )
 
     return(model)
-
-if __name__ == "__main__":
-    model = Conv1D_MultiKernel(
-        input_shape = (30,),
-        num_classes = 3,
-        fkl = [(256,1,2),(256,3,2),(128,5,3)]
-    )
-    model = MLPClassifier(
-        input_shape = (30,),
-        num_classes = 3
-    )
-    print(model.summary())
-
-    from scipy import sparse
-    from keras.utils import to_categorical
-
-    x = np.random.rand(500,30)
-    x = sparse.csr_matrix(x)
-    y = np.random.randint(low = 0, high = 3, size = 500)
-    #y = to_categorical(y, num_classes = 3)
-
-    model.fit(
-        x = x,
-        y = y,
-        batch_size = 128,
-        epochs = 5
-    )

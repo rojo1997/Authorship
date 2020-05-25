@@ -11,6 +11,11 @@ class ANOVA(BaseEstimator, TransformerMixin):
         )
 
     def fit(self, X, y):
+        if X.shape[1] < self.k:
+            self.ANOVA = SelectKBest(
+                score_func = f_classif, 
+                k = X.shape[1]
+            )
         self.ANOVA.fit(X,y)
         return(self)
 

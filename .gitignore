@@ -5,3 +5,5 @@
 **/*.png
 **/*.h5
 results/*.txt
+data/*.*
+models/*.*
