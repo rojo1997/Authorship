@@ -543,10 +543,9 @@ class AuthorshipTest(unittest.TestCase, MLPlatform):
 
     def test_load_model(self):
         name = 'test_TfidfVectorizer_ANOVA_LinearSVC'
-        name = 'test_TfidfVectorizer_ANOVA_MLPClassifier'
         clf = self.load_model(name)
         while True:
-            frase = 'hola que tal'
+            frase = 'esto es una prueba'
             print(clf.predict(pd.Series([frase], name = 'text')))
     
 
