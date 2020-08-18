@@ -8,6 +8,8 @@ Trabajo Fin de Grado sobre el estudio de la Identificación de la Autoría de Do
 
 La documentación extensa del proyecto se encuentra en el [trabajo](Authorship/doc/TFG%20Estudio%20de%20identificacion%20de%20autoría.pdf) presentado a la **Universidad de Granada** sobre la cual se realizo la defensa obteniendo una **calificación de 9,8**.
 
+La documentación hace referencia a numerosos papers relacionados con el problema Authorship. Algunos de los más relevantes se encuentran alojados en el directorio [papers](papers).
+
 ## Uso
 
 El paquete provee de una extensión de la librería **sklearn** dedicada al **Procesamiento del Lenguaje Natural**.
