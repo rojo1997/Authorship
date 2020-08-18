@@ -4,7 +4,7 @@
 
 Trabajo Fin de Grado sobre el estudio de la Identificación de la Autoría de Documentos (Authorship). Haciendo uso de **Text Mining**, modelos de **Machine Learning** y **Deep Learning**. El problema Authorship es un problema de **Aprendizaje Automático** de clasificación multietiqueta, donde la característica más importante o única se presenta en forma de texto libre.
 
-# Documentación
+## Documentación
 
 La documentación extensa del proyecto se encuentra en el [trabajo](Authorship/doc/TFG%20Estudio%20de%20identificacion%20de%20autoría.pdf) presentado a la **Universidad de Granada** sobre la cual se realizo la defensa obteniendo una **calificación de 9,8**.
 
