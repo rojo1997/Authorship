@@ -6,7 +6,7 @@ Trabajo Fin de Grado sobre el estudio de la Identificación de la Autoría de Do
 
 # Documentación
 
-La documentación extensa del proyecto se encuentra en el [trabajo](../Authorship/doc/TFG Estudio de identificacion de autoría.pdf) presentado a la **Universidad de Granada** sobre la cual se realizo la defensa obteniendo una **calificación de 9,8**.
+La documentación extensa del proyecto se encuentra en el [trabajo](Authorship/doc/TFG Estudio de identificacion de autoría.pdf) presentado a la **Universidad de Granada** sobre la cual se realizo la defensa obteniendo una **calificación de 9,8**.
 
 ## Uso
 
@@ -29,7 +29,7 @@ Librerías de python:
 
 ## Instalación
 
-La instalación se puede realizar mediante el fichero [requirements.txt](../requirements.txt):
+La instalación se puede realizar mediante el fichero [requirements.txt](requirements.txt):
 
 ```
 python -m pip -r requirements.txt
@@ -52,15 +52,15 @@ El conjunto de datos se encuentra nativamente en formato XML. Tras eliminar los 
 ## Organización del proyecto
 
 El paquete **Authorship** engloba el conjunto de herramientas relacionadas con NLP que se han aplicado expresadas por el siguiente esquema:
-1. [Preprocesamiento](../Authorship/preprocessing.py)
-2. [Selección de características](../Authorship/feature_selection.py)
-3. [Extracción de características](../Authorship/feature_extraction/text.py)
-4. [Redes neuronales](../Authorship/neural_network.py)
+1. [Preprocesamiento](Authorship/preprocessing.py)
+2. [Selección de características](Authorship/feature_selection.py)
+3. [Extracción de características](Authorship/feature_extraction/text.py)
+4. [Redes neuronales](Authorship/neural_network.py)
 
-Un fichero de [funciones](../Authorship/functions.py) auxiliares para la lectura de datos y limpieza del dataset.
+Un fichero de [funciones](Authorship/functions.py) auxiliares para la lectura de datos y limpieza del dataset.
 
 Puesto que la motivación del proyecto es estudiar la influencia de las distintas herramientas o transformaciones en tareas de clasificación los modelos finales se encuentra implementados en la sección de testing:
-* [Authorship_test](../tests/Authorship_test.py)
+* [Authorship_test](tests/Authorship_test.py)
 
 ## Referencias de metodología
 
